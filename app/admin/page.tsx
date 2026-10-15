@@ -1,3 +1,4 @@
+import TechnicianAvatar from "./technician-avatar";
 import InviteForm from "./invite-form";
 import { currentRole } from "@/lib/server";
 import { redirect } from "next/navigation";
@@ -8,7 +9,7 @@ export default async function Admin() {
   if (!user) redirect("/login");
   if (role !== "admin") redirect("/");
   const [{ data: techs }, { data: ratings }, { data: jobs }] = await Promise.all([
-    db.from("technicians").select("user_id,full_name,city,roles,equipment,completed_at").order("full_name"),
+    db.from("technicians").select("user_id,full_name,city,roles,equipment,completed_at,avatar_path").order("full_name"),
     db.from("skill_ratings").select("technician_id,skill,level"),
     db.from("jobs").select("id,title,status,starts_at").order("starts_at", { ascending: false }).limit(8),
   ]);
@@ -30,7 +31,7 @@ export default async function Admin() {
       <h2 className="text-lg sm:text-xl font-bold">Private roster</h2>
       {!techs?.length ? <p className="muted text-sm">No technicians yet. Generate a link above to invite your first technician.</p> :
         techs.map(t => <div key={t.user_id} className="border-t border-slate-700 py-4">
-          <div className="font-bold">{t.full_name || "Incomplete profile"}</div>
+          <div className="flex items-center gap-3"><TechnicianAvatar path={t.avatar_path} name={t.full_name || "Technician"}/><div className="font-bold">{t.full_name || "Incomplete profile"}</div></div>
           <p className="muted text-sm mt-1">{t.city} · {t.roles?.join(", ")}</p>
           <p className="text-sm mt-2 break-words">Equipment: {t.equipment?.join(", ") || "Not provided"}</p>
           <p className="text-sm text-blue-300 mt-1 break-words">Admin ratings: {ratings?.filter(r => r.technician_id === t.user_id).map(r => r.skill + " " + r.level + "/5").join(" · ") || "Unrated"}</p>
