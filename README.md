@@ -22,3 +22,6 @@ Keep all secret keys out of Git. Configure environment variables in deployment s
 2. Invitations and technician onboarding.
 3. Admin roster, equipment skills, and ratings.
 4. Job creation, matching, and individual/bulk email offers.
+
+## Cloudflare deployment
+The Cloudflare Worker uses OpenNext. The build and runtime environments both require `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`. After adding or changing build variables, start a new GitHub-triggered build so Next.js includes them.
