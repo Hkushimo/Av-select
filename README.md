@@ -28,3 +28,6 @@ The Cloudflare Worker uses OpenNext. The build and runtime environments both req
 
 ## Invitation deployment
 Cloudflare auto-deploys changes from the main branch. The admin dashboard generates a 7-day, single-use link with no email address required. Android's native share sheet lets the admin choose any messaging app. The recipient enters their own email/password on `/invite` and completes onboarding. Run `supabase/migrations/002_share_invites.sql` in Supabase SQL Editor before testing. The server API requires the `SUPABASE_SECRET_KEY` Cloudflare runtime secret. Supabase Auth email/password sign-in must be enabled; the platform still does not expose public technician registration.
+
+## Technician profiles and photos
+The mobile account navigation provides Sign in / Log out and a My profile page for technicians. Returning technicians can edit their earlier onboarding selections. Profile photos are optional and are stored in the private Supabase Storage bucket `technician-avatars`; uploads are limited to JPG, PNG, or WebP of at most 5 MB. Technicians and administrators can access photos under storage policies. **Run `supabase/migrations/003_technician_avatars.sql` in Supabase SQL Editor before using the updated roster/profile features.**
