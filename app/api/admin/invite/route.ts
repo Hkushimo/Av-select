@@ -1,61 +1,32 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { currentRole } from "@/lib/server";
+import { adminDb, tokenHash } from "@/lib/admin-supabase";
 
-export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-function serverSecrets() {
-  let bindings: Record<string, unknown> = {};
-  try { bindings = getCloudflareContext().env as unknown as Record<string, unknown>; } catch {}
-  const url = (bindings.NEXT_PUBLIC_SUPABASE_URL as string | undefined) || process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const secret = (bindings.SUPABASE_SECRET_KEY as string | undefined) || process.env.SUPABASE_SECRET_KEY;
-  if (!url || !secret) throw new Error("Server-side Supabase invitation credentials are not configured.");
-  return { url, secret };
-}
 
 export async function POST(request: NextRequest) {
   try {
     const { user, role } = await currentRole();
-    if (!user) return NextResponse.json({ error: "Please sign in." }, { status: 401 });
-    if (role !== "admin") return NextResponse.json({ error: "Administrator access required." }, { status: 403 });
+    if (!user) return NextResponse.json({ error: "Sign in first." }, { status: 401 });
+    if (role !== "admin") return NextResponse.json({ error: "Admin access required." }, { status: 403 });
 
-    const { email: submitted } = await request.json() as { email?: unknown };
-    if (typeof submitted !== "string") return NextResponse.json({ error: "Enter an email address." }, { status: 400 });
-    const email = submitted.trim().toLowerCase();
-    if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      return NextResponse.json({ error: "Enter a valid email address." }, { status: 400 });
-    }
-
-    const { url, secret } = serverSecrets();
-    const admin = createClient(url, secret, { auth: { persistSession: false, autoRefreshToken: false } });
-    const { data: existing, error: lookupError } = await admin.from("profiles")
-      .select("id, role").eq("email", email).maybeSingle();
-    if (lookupError) throw lookupError;
-    if (existing) return NextResponse.json({ error: "This email already has an AV Select account." }, { status: 409 });
-
-    // Never trust request-supplied redirect URLs. Use the deployment's own origin.
-    const origin = new URL(request.url).origin;
-    const { data, error: inviteError } = await admin.auth.admin.generateLink({
-      type: "invite", email,
-      options: { redirectTo: origin + "/invite" },
+    const token = Array.from(crypto.getRandomValues(new Uint8Array(32)),
+      b => b.toString(16).padStart(2, "0")).join("");
+    const hash = await tokenHash(token);
+    const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+    const db = adminDb();
+    const { error } = await db.from("technician_invites").insert({
+      token_hash: hash, created_by: user.id, expires_at: expires
     });
-    if (inviteError) return NextResponse.json({ error: inviteError.message }, { status: 400 });
-    if (!data.user || !data.properties?.action_link) throw new Error("Supabase did not return an invitation link.");
+    if (error) throw error;
 
-    const { data: existingId, error: idCheckError } = await admin.from("profiles")
-      .select("id").eq("id", data.user.id).maybeSingle();
-    if (idCheckError) throw idCheckError;
-    if (existingId) return NextResponse.json({ error: "This user already has an AV Select profile. Existing permissions were not changed." }, { status: 409 });
-
-    const { error: profileError } = await admin.from("profiles")
-      .insert({ id: data.user.id, email, role: "technician" });
-    if (profileError) throw new Error("The invite was generated, but the technician profile could not be created. Contact support before retrying.");
-
-    return NextResponse.json({ message: "Private invitation link created for " + email, inviteUrl: data.properties.action_link });
-  } catch (error) {
-    console.error("Admin invite failed:", error instanceof Error ? error.message : "unknown error");
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Unable to send invitation." }, { status: 500 });
+    const url = new URL(request.url);
+    const inviteUrl = url.origin + "/invite?token=" + token;
+    return NextResponse.json({ inviteUrl, expiresAt: expires }, {
+      headers: { "Cache-Control": "no-store" }
+    });
+  } catch (err) {
+    console.error("Create invite:", err);
+    return NextResponse.json({ error: "Could not create invite. Make sure the invite SQL migration has been run." }, { status: 500 });
   }
 }
