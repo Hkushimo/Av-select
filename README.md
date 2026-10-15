@@ -31,3 +31,5 @@ Cloudflare auto-deploys changes from the main branch. The admin dashboard genera
 
 ## Technician profiles and photos
 The mobile account navigation provides Sign in / Log out and a My profile page for technicians. Returning technicians can edit their earlier onboarding selections. Profile photos are optional and are stored in the private Supabase Storage bucket `technician-avatars`; uploads are limited to JPG, PNG, or WebP of at most 5 MB. Technicians and administrators can access photos under storage policies. **Run `supabase/migrations/003_technician_avatars.sql` in Supabase SQL Editor before using the updated roster/profile features.**
+
+Cloudflare rebuild trigger: technician profile navigation and optional private avatar upload feature.
