@@ -43,8 +43,13 @@ export async function POST(request: NextRequest) {
     if (inviteError) return NextResponse.json({ error: inviteError.message }, { status: 400 });
     if (!data.user) throw new Error("Supabase did not return the invited user.");
 
+    const { data: existingId, error: idCheckError } = await admin.from("profiles")
+      .select("id").eq("id", data.user.id).maybeSingle();
+    if (idCheckError) throw idCheckError;
+    if (existingId) return NextResponse.json({ error: "This user already has an AV Select profile. Existing permissions were not changed." }, { status: 409 });
+
     const { error: profileError } = await admin.from("profiles")
-      .upsert({ id: data.user.id, email, role: "technician" }, { onConflict: "id" });
+      .insert({ id: data.user.id, email, role: "technician" });
     if (profileError) throw new Error("The invitation was sent, but the technician profile could not be created. Contact support before retrying.");
 
     return NextResponse.json({ message: "Invitation email sent to " + email });
