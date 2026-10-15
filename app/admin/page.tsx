@@ -30,12 +30,19 @@ export default async function Admin() {
     <section className="panel space-y-4">
       <h2 className="text-lg sm:text-xl font-bold">Private roster</h2>
       {!techs?.length ? <p className="muted text-sm">No technicians yet. Generate a link above to invite your first technician.</p> :
-        techs.map(t => <div key={t.user_id} className="border-t border-slate-700 py-4">
-          <div className="flex items-center gap-3"><TechnicianAvatar path={t.avatar_path} name={t.full_name || "Technician"}/><div className="font-bold">{t.full_name || "Incomplete profile"}</div></div>
-          <p className="muted text-sm mt-1">{t.city} · {t.roles?.join(", ")}</p>
-          <p className="text-sm mt-2 break-words">Equipment: {t.equipment?.join(", ") || "Not provided"}</p>
-          <p className="text-sm text-blue-300 mt-1 break-words">Admin ratings: {ratings?.filter(r => r.technician_id === t.user_id).map(r => r.skill + " " + r.level + "/5").join(" · ") || "Unrated"}</p>
-        </div>)}
+        techs.map(t => <Link key={t.user_id} href={`/admin/technicians/${t.user_id}`}
+          className="block border-t border-slate-700 py-4 px-2 -mx-2 rounded-lg hover:bg-slate-800/60 focus-visible:outline-2 focus-visible:outline-blue-400 transition-colors"
+          aria-label={`View ${t.full_name || "technician"} profile`}>
+          <div className="flex items-center gap-3">
+            <TechnicianAvatar path={t.avatar_path} name={t.full_name || "Technician"}/>
+            <div className="min-w-0 flex-1">
+              <div className="font-bold break-words">{t.full_name || "Incomplete profile"}</div>
+              <p className="muted text-sm mt-1 break-words">{t.city || "Location not provided"} · {t.roles?.slice(0,2).join(", ") || "No positions yet"}</p>
+            </div>
+            <span className="text-blue-300 text-xl shrink-0" aria-hidden="true">›</span>
+          </div>
+          <p className="text-xs text-blue-300 mt-2">View full profile →</p>
+        </Link>)}
     </section>
   </main>;
 }
