@@ -37,11 +37,12 @@ export async function POST(request: NextRequest) {
 
     // Never trust request-supplied redirect URLs. Use the deployment's own origin.
     const origin = new URL(request.url).origin;
-    const { data, error: inviteError } = await admin.auth.admin.inviteUserByEmail(email, {
+    const { data, error: inviteError } = await admin.auth.admin.generateLink({
+      type: "invite", email,
       redirectTo: origin + "/invite",
     });
     if (inviteError) return NextResponse.json({ error: inviteError.message }, { status: 400 });
-    if (!data.user) throw new Error("Supabase did not return the invited user.");
+    if (!data.user || !data.properties?.action_link) throw new Error("Supabase did not return an invitation link.");
 
     const { data: existingId, error: idCheckError } = await admin.from("profiles")
       .select("id").eq("id", data.user.id).maybeSingle();
@@ -50,9 +51,9 @@ export async function POST(request: NextRequest) {
 
     const { error: profileError } = await admin.from("profiles")
       .insert({ id: data.user.id, email, role: "technician" });
-    if (profileError) throw new Error("The invitation was sent, but the technician profile could not be created. Contact support before retrying.");
+    if (profileError) throw new Error("The invite was generated, but the technician profile could not be created. Contact support before retrying.");
 
-    return NextResponse.json({ message: "Invitation email sent to " + email });
+    return NextResponse.json({ message: "Private invitation link created for " + email, inviteUrl: data.properties.action_link });
   } catch (error) {
     console.error("Admin invite failed:", error instanceof Error ? error.message : "unknown error");
     return NextResponse.json({ error: error instanceof Error ? error.message : "Unable to send invitation." }, { status: 500 });
