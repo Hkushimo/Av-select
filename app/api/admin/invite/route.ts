@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
     const origin = new URL(request.url).origin;
     const { data, error: inviteError } = await admin.auth.admin.generateLink({
       type: "invite", email,
-      redirectTo: origin + "/invite",
+      options: { redirectTo: origin + "/invite" },
     });
     if (inviteError) return NextResponse.json({ error: inviteError.message }, { status: 400 });
     if (!data.user || !data.properties?.action_link) throw new Error("Supabase did not return an invitation link.");
