@@ -21,10 +21,10 @@ Keep all secret keys out of Git. Configure environment variables in deployment s
 1. Application scaffold, authentication, database schema, and row-level security.
 2. Invitations and technician onboarding.
 3. Admin roster, equipment skills, and ratings.
-4. Job creation, matching, and individual/bulk email offers.
+4. Job creation, matching, and individual/bulk job offers.
 
 ## Cloudflare deployment
 The Cloudflare Worker uses OpenNext. The build and runtime environments both require `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`. After adding or changing build variables, start a new GitHub-triggered build so Next.js includes them.
 
 ## Invitation deployment
-Cloudflare auto-deploys changes from the main branch. The invitation API requires the server-side `SUPABASE_SECRET_KEY` Worker secret and an allowed Supabase Auth redirect URL ending in `/invite`.
+Cloudflare auto-deploys changes from the main branch. The invitation API generates a private shareable invite URL (no SMTP needed). It requires the server-side `SUPABASE_SECRET_KEY` Worker secret and an allowed Supabase Auth redirect URL ending in `/invite`.
