@@ -18,7 +18,19 @@ export async function POST(request: NextRequest) {
     const { error } = await db.from("technician_invites").insert({
       token_hash: hash, created_by: user.id, expires_at: expires
     });
-    if (error) throw error;
+    if (error) {
+      console.error("Invite insert failed:", { code: error.code, message: error.message });
+      if (error.code === "42P01" || error.code === "PGRST205") {
+        return NextResponse.json({ error: "The technician_invites table was not found. Run migration 002 in the AV Select Supabase project." }, { status: 500 });
+      }
+      if (error.code === "42501") {
+        return NextResponse.json({ error: "Supabase denied access. Check that SUPABASE_SECRET_KEY is a server-side secret, not a publishable key." }, { status: 500 });
+      }
+      if (error.code === "23503") {
+        return NextResponse.json({ error: "The administrator does not have a matching profile record in Supabase." }, { status: 500 });
+      }
+      return NextResponse.json({ error: "Supabase failed to save the invitation (code: " + (error.code || "unknown") + "). Check Cloudflare runtime logs." }, { status: 500 });
+    }
 
     const url = new URL(request.url);
     const inviteUrl = url.origin + "/invite?token=" + token;
@@ -27,6 +39,6 @@ export async function POST(request: NextRequest) {
     });
   } catch (err) {
     console.error("Create invite:", err);
-    return NextResponse.json({ error: "Could not create invite. Make sure the invite SQL migration has been run." }, { status: 500 });
+    return NextResponse.json({ error: "Invitation failed on the server. Check the Cloudflare runtime logs for details." }, { status: 500 });
   }
 }
