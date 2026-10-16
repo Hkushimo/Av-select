@@ -4,6 +4,7 @@ import { currentRole } from "@/lib/server";
 import TechnicianAvatar from "../../technician-avatar";
 import RatingEditor from "./rating-editor";
 import {formatPhone} from "@/lib/phone";
+import Breadcrumbs from "../../breadcrumbs";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -30,7 +31,7 @@ export default async function TechnicianDetails({ params }: Props) {
   };
 
   return <main className="mx-auto max-w-4xl px-4 py-6 sm:px-6 space-y-5">
-    <Link href="/admin" className="text-sm text-blue-300 inline-flex py-2">← Back to roster</Link>
+    <Breadcrumbs items={[{label:"Dashboard",href:"/admin"},{label:"Crew",href:"/admin"},{label:displayName}]}/>
     <header className="panel flex items-start gap-4">
       <TechnicianAvatar path={technician.avatar_path} name={displayName} size="lg"/>
       <div className="min-w-0">

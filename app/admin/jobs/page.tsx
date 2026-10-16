@@ -1,6 +1,7 @@
 import {currentRole} from "@/lib/server";
 import {redirect} from "next/navigation";
 import Link from "next/link";
+import Breadcrumbs from "../breadcrumbs";
 import JobCreate from "./create-job";
 
 export default async function Jobs(){
@@ -8,7 +9,7 @@ export default async function Jobs(){
  if(!user)redirect("/login");if(role!=="admin")redirect("/");
  const {data:jobs,error}=await db.from("jobs").select("id,title,venue,starts_at,ends_at,status,rate").order("starts_at",{ascending:false});
  return <main className="mx-auto max-w-4xl px-4 py-6 space-y-5">
-  <Link href="/admin" className="text-blue-300 text-sm">← Admin dashboard</Link>
+  <Breadcrumbs items={[{label:"Dashboard",href:"/admin"},{label:"Jobs"}]}/>
   <div><p className="text-blue-400 tracking-widest font-bold text-xs">STAFFING</p><h1 className="text-2xl sm:text-3xl font-bold mt-1">Jobs</h1></div>
   <JobCreate/>
   <section className="space-y-3">

@@ -2,6 +2,7 @@ import Link from "next/link";
 import {redirect} from "next/navigation";
 import {currentRole} from "@/lib/server";
 import MarkActivitySeen from "@/app/mark-activity-seen";
+import Breadcrumbs from "../breadcrumbs";
 
 export default async function AdminActivity(){
  const {db,user,role}=await currentRole();
@@ -15,7 +16,7 @@ export default async function AdminActivity(){
  const {data:people}=ids.length?await db.from("technicians").select("user_id,full_name").in("user_id",ids):{data:[] as {user_id:string;full_name:string}[]};
  const names=new Map((people||[]).map(p=>[p.user_id,p.full_name]));
  return <main className="mx-auto max-w-3xl px-4 py-6 space-y-5">
-  <Link href="/admin" className="text-blue-300 text-sm">← Dashboard</Link>
+  <Breadcrumbs items={[{label:"Dashboard",href:"/admin"},{label:"Activity"}]}/>
   <header><p className="text-xs font-bold tracking-widest text-blue-400">ADMIN</p><h1 className="text-2xl sm:text-3xl font-bold mt-1">Job activity</h1>
    <p className="muted text-sm mt-2">Recent accepted offers. Declined offers are removed automatically. Viewing this page clears your unread badge.</p></header>
   {!error&&<MarkActivitySeen userId={user.id} kind="responses"/>}

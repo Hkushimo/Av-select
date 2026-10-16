@@ -2,6 +2,7 @@ import Link from "next/link";
 import {notFound,redirect} from "next/navigation";
 import {currentRole} from "@/lib/server";
 import ManageJob from "../manage-job";
+import Breadcrumbs from "../../breadcrumbs";
 
 type Props={params:Promise<{id:string}>};
 export default async function JobDetails({params}:Props){
@@ -21,7 +22,7 @@ export default async function JobDetails({params}:Props){
  const status=job.status==="open"||job.status==="closed"?job.status:"draft";
  const when=(value:string)=>new Date(value).toLocaleString("en-US",{dateStyle:"medium",timeStyle:"short"});
  return <main className="mx-auto max-w-3xl px-4 py-6 space-y-5">
-  <Link href="/admin/jobs" className="text-blue-300 text-sm">← All jobs</Link>
+  <Breadcrumbs items={[{label:"Dashboard",href:"/admin"},{label:"Jobs",href:"/admin/jobs"},{label:job.title}]}/>
   <header>
    <div className="text-blue-400 tracking-widest text-xs font-bold">JOB DETAILS</div>
    <h1 className="text-2xl sm:text-3xl font-bold mt-2 break-words">{job.title}</h1>

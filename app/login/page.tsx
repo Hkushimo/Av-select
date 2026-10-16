@@ -1,6 +1,5 @@
 "use client";
 import {FormEvent,useEffect,useState} from "react";
-import Link from "next/link";
 import {browserDb} from "@/lib/supabase";
 
 export default function Login(){
@@ -23,17 +22,14 @@ export default function Login(){
    window.location.replace("/");
   }catch(err){setError(err instanceof Error?err.message:"Login failed");setBusy(false)}
  }
- return <main className="min-h-[75vh] flex items-center justify-center p-4 sm:p-6">
+ return <main className="min-h-[70vh] flex items-center justify-center px-4 py-8 sm:p-6">
   <form onSubmit={submit} className="panel w-full max-w-md space-y-5">
-   <div className="inline-flex"><img src="/av-select-logo.png" alt="AV Select" width={240} height={80} className="h-auto w-[210px]" /></div>
-   <h1 className="text-3xl font-bold">Welcome back</h1>
-   {checking?<p className="muted text-sm">Checking your saved login…</p>:<>
-    <p className="muted text-sm">Sign in with your invited account. AV Select keeps you signed in on this device unless you log out or the session is revoked.</p>
+   <div><h1 className="text-2xl sm:text-3xl font-bold">Sign in</h1><p className="muted text-sm mt-1">Welcome back to AV Select.</p></div>
+   {checking?<p className="muted text-sm">Checking your session…</p>:<>
     <div><label className="label" htmlFor="email">Email</label><input id="email" type="email" autoComplete="username" required value={email} onChange={e=>setEmail(e.target.value)}/></div>
     <div><label className="label" htmlFor="password">Password</label><input id="password" type="password" autoComplete="current-password" required value={password} onChange={e=>setPassword(e.target.value)}/></div>
     {error&&<p role="alert" className="text-red-400 text-sm">{error}</p>}
     <button disabled={busy} className="primary w-full">{busy?"Signing in…":"Sign in"}</button>
-    <p className="muted text-xs">Use Log out in the top menu whenever you want to end your session.</p>
    </>}
   </form>
  </main>;
