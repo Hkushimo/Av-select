@@ -39,11 +39,11 @@ export default function InviteForm() {
     await copy();
   }
 
-  return <section className="panel space-y-4" id="invite-technician">
-    <div>
-      <h2 className="text-xl font-bold">Invite a technician</h2>
-      <p className="muted text-sm mt-2">Generate a private, single-use link. Share it however you like using your Android share menu. No email address needed here.</p>
-    </div>
+  return <details className="rounded-xl border border-slate-700/70 bg-[#121a29] px-4 py-3 group" id="invite-technician">
+    <summary className="flex cursor-pointer items-center justify-between gap-3 font-semibold list-none [&::-webkit-details-marker]:hidden">
+      <span className="flex items-center gap-2"><span className="text-blue-300">＋</span> Invite technician</span><span className="muted text-xs font-normal">Create & share link</span>
+    </summary>
+    <div className="space-y-3 pt-4"><p className="muted text-sm">Create a private, single-use link, then choose any app on your phone to share it.</p>
     <button type="button" className="primary w-full sm:w-auto" disabled={busy} onClick={generate}>
       {busy ? "Generating…" : "Generate invite link"}
     </button>
@@ -60,5 +60,6 @@ export default function InviteForm() {
     </div>}
     {notice && <p role="status" className="text-green-300 text-sm">{notice}</p>}
     {error && <p role="alert" className="text-red-400 text-sm">{error}</p>}
-  </section>;
+    </div>
+  </details>;
 }
