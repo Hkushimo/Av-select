@@ -39,7 +39,7 @@ export default function AccountNav(){
  }
  return <nav aria-label="Account" className="border-b border-slate-800 bg-[#0e1523]">
   <div className="mx-auto max-w-6xl px-4 py-3 flex flex-wrap items-center gap-2 text-sm">
-   <Link href="/" className="mr-auto inline-flex shrink-0 items-center rounded-lg bg-slate-100 px-2 py-1" aria-label="AV Select home"><img src="/av-select-logo.png" alt="AV Select" width={150} height={50} className="h-9 w-auto max-w-[140px] object-contain" /></Link>
+   <Link href="/" className="mr-auto inline-flex shrink-0 items-center" aria-label="AV Select home"><img src="/av-select-logo.png" alt="AV Select" width={150} height={50} className="h-9 w-auto max-w-[140px] object-contain" /></Link>
    {email?<>{role==="technician"&&<><Link className="pill" href="/offers">Offers</Link><Link className="pill" href="/profile">My profile</Link></>}
     {role==="admin"&&!pathname.startsWith("/admin")&&<Link className="pill" href="/admin">Dashboard</Link>}
     <button type="button" className="pill" onClick={logout}>Log out</button></>:
