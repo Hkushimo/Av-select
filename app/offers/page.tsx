@@ -8,7 +8,7 @@ export default async function Offers(){
  if(role!=="technician")redirect("/");
  const {data:offers,error}=await db.from("job_offers")
   .select("id,status,jobs(title,venue,starts_at,ends_at,rate,details,status)")
-  .eq("technician_id",user.id).order("created_at",{ascending:false});
+  .eq("technician_id",user.id).neq("status","declined").order("created_at",{ascending:false});
  return <main className="mx-auto max-w-3xl px-4 py-6 space-y-5">
   {!error&&<MarkActivitySeen userId={user.id} kind="offers"/>}
   <div><p className="tracking-widest text-blue-400 text-xs font-bold">AV SELECT</p><h1 className="text-2xl sm:text-3xl font-bold mt-1">Your job offers</h1></div>

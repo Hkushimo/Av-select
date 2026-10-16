@@ -16,7 +16,7 @@ export default function JobActivityBadge({userId,role}:{userId:string;role:"admi
     const lastSeen=role==="admin"?cursor?.responses_seen_at:cursor?.offers_seen_at;
     const since=lastSeen||"1970-01-01T00:00:00Z";
     const query=role==="admin"?
-     db.from("job_offers").select("id",{count:"exact",head:true}).in("status",["accepted","declined"]).gt("responded_at",since):
+     db.from("job_offers").select("id",{count:"exact",head:true}).eq("status","accepted").gt("responded_at",since):
      db.from("job_offers").select("id",{count:"exact",head:true}).eq("technician_id",userId).gt("created_at",since);
     const {count:total,error}=await query;
     if(live&&!error)setCount(total||0);
