@@ -2,10 +2,12 @@
 import {ChangeEvent,useEffect,useState} from "react";
 import Link from "next/link";
 import {browserDb} from "@/lib/supabase";
+type Rating={skill:string;level:number};
 type Profile={full_name:string;phone:string;city:string;travel:string;other_skills:string;roles:string[];equipment:string[];avatar_path:string|null};
 export default function TechnicianProfile(){
  const [id,setId]=useState(""),[profile,setProfile]=useState<Profile|null>(null),[image,setImage]=useState("");
  const [error,setError]=useState(""),[status,setStatus]=useState(""),[busy,setBusy]=useState(false);
+ const [ratings,setRatings]=useState<Rating[]>([]),[ratingsError,setRatingsError]=useState("");
  useEffect(()=>{let active=true;async function load(){
   const db=browserDb();const {data:{user}}=await db.auth.getUser();
   if(!active)return;if(!user){location.replace("/login");return}
@@ -15,6 +17,8 @@ export default function TechnicianProfile(){
   const {data,error}=await db.from("technicians").select("full_name,phone,city,travel,other_skills,roles,equipment,avatar_path").eq("user_id",user.id).maybeSingle();
   if(!active)return;if(error){setError(error.message);return}
   if(!data){location.replace("/onboarding");return}setProfile(data);
+  const {data:myRatings,error:myRatingsError}=await db.from("skill_ratings").select("skill,level").eq("technician_id",user.id).order("skill");
+  if(active){if(myRatingsError)setRatingsError("Could not load official proficiency ratings.");else setRatings(myRatings||[])}
   if(data.avatar_path){const {data:signed}=await db.storage.from("technician-avatars").createSignedUrl(data.avatar_path,600);
    if(active)setImage(signed?.signedUrl||"")}
  }void load();return()=>{active=false}},[]);
@@ -74,6 +78,17 @@ export default function TechnicianProfile(){
     <label className="block"><span className="label">Travel preference</span><select value={profile.travel} onChange={e=>field("travel",e.target.value)}><option value="local">Local</option><option value="regional">Regional</option><option value="national">Nationwide</option><option value="international">International</option></select></label>
     <label className="block"><span className="label">Other skills or equipment</span><textarea rows={3} value={profile.other_skills} onChange={e=>field("other_skills",e.target.value)}/></label>
     <button type="button" className="primary w-full" disabled={busy} onClick={save}>{busy?"Saving…":"Save profile"}</button>
+   </section>
+   <section className="panel space-y-3">
+    <h2 className="text-lg font-semibold">My official proficiency ratings</h2>
+    <p className="muted text-sm">These assessments are assigned by AV Select administrators. You can view them here, but only an administrator can change them.</p>
+    {ratingsError?<p role="alert" className="text-red-300 text-sm">{ratingsError}</p>:
+     ratings.length?ratings.map(r=><div key={r.skill} className="space-y-2 border-t border-slate-700 py-3">
+      <div className="flex items-center justify-between gap-3"><span className="font-medium break-words">{r.skill}</span><span className="text-blue-300 text-sm shrink-0">{r.level}/5</span></div>
+      <div role="img" aria-label={r.skill+": "+r.level+" of 5"} className="h-2.5 w-full rounded-full bg-slate-700 overflow-hidden">
+       <div className="h-full bg-blue-500 rounded-full" style={{width:(r.level/5*100)+"%"}}/>
+      </div>
+     </div>):<p className="muted text-sm">An administrator hasn't assigned any proficiency ratings yet.</p>}
    </section>
    <section className="panel space-y-3"><h2 className="text-lg font-semibold">Positions and equipment</h2>
     <p className="muted text-sm">{profile.roles.join(", ")||"No positions selected"}</p>
