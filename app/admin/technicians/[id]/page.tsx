@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { currentRole } from "@/lib/server";
 import TechnicianAvatar from "../../technician-avatar";
+import RatingEditor from "./rating-editor";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -65,13 +66,6 @@ export default async function TechnicianDetails({ params }: Props) {
       {!!technician.other_skills && <div className="pt-2"><p className="label">Other equipment / specialties</p><p className="whitespace-pre-wrap break-words">{technician.other_skills}</p></div>}
     </section>
 
-    <section className="panel space-y-3">
-      <h2 className="text-lg font-semibold">Official skill ratings</h2>
-      {ratings?.length ? <div className="divide-y divide-slate-700">{ratings.map(r=><div className="flex items-center justify-between gap-3 py-3" key={r.skill}>
-        <span className="break-words">{r.skill}</span>
-        <span className="font-bold text-blue-300 whitespace-nowrap">{r.level}/5</span>
-      </div>)}</div> : <p className="muted">Not yet rated by an administrator.</p>}
-      <p className="muted text-xs">Only administrators assign official proficiency ratings.</p>
-    </section>
+    <RatingEditor technicianId={id} initialRatings={ratings || []} suggestions={[...(technician.roles || []),...(technician.equipment || [])]} />
   </main>;
 }
