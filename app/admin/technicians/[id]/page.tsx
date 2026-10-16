@@ -5,6 +5,7 @@ import TechnicianAvatar from "../../technician-avatar";
 import RatingEditor from "./rating-editor";
 import {formatPhone} from "@/lib/phone";
 import Breadcrumbs from "../../breadcrumbs";
+import DeleteTechnician from "./delete-technician";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -69,5 +70,6 @@ export default async function TechnicianDetails({ params }: Props) {
     </section>
 
     <RatingEditor technicianId={id} initialRatings={ratings || []} suggestions={[...(technician.roles || []),...(technician.equipment || [])]} />
+    <DeleteTechnician id={id} name={displayName}/>
   </main>;
 }

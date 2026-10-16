@@ -14,7 +14,7 @@ function OfferCard({offer}:{offer:ScheduleOffer}){
  return <article className="panel space-y-3">
   <div className="flex items-start justify-between gap-3">
    <h2 className="text-lg sm:text-xl font-bold break-words">{job?.title||"Job"}</h2>
-   <span className={"pill text-xs capitalize shrink-0 "+(offer.status==="accepted"?"text-green-300":"text-amber-200")}>{offer.status}</span>
+   <span className={"pill text-xs capitalize shrink-0 "+(offer.status==="confirmed"?"text-green-300":offer.status==="accepted"?"text-blue-300":"text-amber-200")}>{offer.status==="confirmed"?"Booked":offer.status}</span>
   </div>
   <p className="muted text-sm">{job?.venue||"Venue TBD"}</p>
   {job?.starts_at&&<p className="text-sm"><span className="muted">Start: </span>{dateLabel(job.starts_at)}</p>}
@@ -22,6 +22,7 @@ function OfferCard({offer}:{offer:ScheduleOffer}){
   {job?.rate&&<p className="text-sm"><span className="muted">Rate: </span>{job.rate}</p>}
   {job?.details&&<p className="text-sm whitespace-pre-wrap break-words">{job.details}</p>}
   {offer.status==="pending"&&<OfferActions id={offer.id}/>}
+  {offer.status==="confirmed"&&<p className="text-green-300 text-xs">Booking confirmed by the organizer.</p>}
   {offer.status==="accepted"&&<p className="text-blue-300 text-xs">Accepted · Awaiting staffing confirmation. This is not yet a confirmed booking.</p>}
  </article>;
 }
@@ -31,9 +32,9 @@ export default function ScheduleTabs({offers,userId}:{offers:ScheduleOffer[];use
  const [today]=useState(()=>new Date());
  const [month,setMonth]=useState(()=>new Date(today.getFullYear(),today.getMonth(),1));
  const [selectedDay,setSelectedDay]=useState(()=>dayKey(today));
- const accepted=useMemo(()=>offers.filter(o=>o.status==="accepted"&&o.job?.starts_at).sort((a,b)=>new Date(a.job!.starts_at).getTime()-new Date(b.job!.starts_at).getTime()),[offers]);
+ const accepted=useMemo(()=>offers.filter(o=>(o.status==="accepted"||o.status==="confirmed")&&o.job?.starts_at).sort((a,b)=>new Date(a.job!.starts_at).getTime()-new Date(b.job!.starts_at).getTime()),[offers]);
  const pending=offers.filter(o=>o.status==="pending");
- const other=offers.filter(o=>o.status==="accepted");
+ const other=offers.filter(o=>o.status==="accepted"||o.status==="confirmed");
  const byDay=useMemo(()=>{
   const map=new Map<string,ScheduleOffer[]>();
   for(const offer of accepted){
@@ -72,10 +73,10 @@ export default function ScheduleTabs({offers,userId}:{offers:ScheduleOffer[];use
   {tab==="offers"?<div role="tabpanel" className="space-y-4">
     <MarkActivitySeen userId={userId} kind="offers"/>
     {pending.length>0&&<section className="space-y-3"><h2 className="font-semibold text-lg">New opportunities <span className="muted text-sm">({pending.length})</span></h2>{pending.map(o=><OfferCard key={o.id} offer={o}/>)}</section>}
-    {other.length>0&&<section className="space-y-3"><h2 className="font-semibold text-lg">Accepted offers <span className="muted text-sm">({other.length})</span></h2>{other.map(o=><OfferCard key={o.id} offer={o}/>)}</section>}
+    {other.length>0&&<section className="space-y-3"><h2 className="font-semibold text-lg">Accepted & booked jobs <span className="muted text-sm">({other.length})</span></h2>{other.map(o=><OfferCard key={o.id} offer={o}/>)}</section>}
     {!pending.length&&!other.length&&<div className="panel muted text-sm">No job offers right now. New opportunities will appear here when an admin sends them.</div>}
    </div>:<div role="tabpanel" className="space-y-4">
-    <p className="muted text-sm">Accepted offers appear here while awaiting confirmation. They are not confirmed work bookings.</p>
+    <p className="muted text-sm">Your accepted and confirmed jobs appear here. Only jobs marked Booked are confirmed.</p>
     <section className="panel space-y-4 !p-3 sm:!p-5">
      <div className="flex items-center justify-between gap-2">
       <button type="button" onClick={()=>moveMonth(-1)} className="pill" aria-label="Previous month">‹</button>
@@ -86,7 +87,7 @@ export default function ScheduleTabs({offers,userId}:{offers:ScheduleOffer[];use
       {days.map(d=>{
        const key=dayKey(d),count=byDay.get(key)?.length||0,isCurrentMonth=d.getMonth()===month.getMonth(),selected=key===selectedDay,isToday=key===dayKey(today);
        return <button type="button" key={key} onClick={()=>setSelectedDay(key)}
-        aria-label={`${d.toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"})}, ${count} accepted ${count===1?"offer":"offers"}`}
+        aria-label={`${d.toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"})}, ${count} scheduled ${count===1?"job":"jobs"}`}
         aria-pressed={selected} className={"min-h-14 sm:min-h-16 rounded-lg border flex flex-col items-center justify-start py-2 gap-1 text-sm "+(selected?"border-blue-400 bg-blue-600/25":isToday?"border-blue-700 bg-slate-800":"border-transparent hover:bg-slate-800")+(isCurrentMonth?" text-white":" text-slate-500")}>
         <span className={isToday?"font-bold text-blue-300":""}>{d.getDate()}</span>
         {count>0&&<span className="text-[10px] bg-blue-500 rounded-full text-white min-w-4 px-1 leading-4">{count}</span>}
@@ -96,14 +97,14 @@ export default function ScheduleTabs({offers,userId}:{offers:ScheduleOffer[];use
     </section>
     <section className="space-y-3">
      <h2 className="text-lg font-semibold">{selectedDate.toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric"})}</h2>
-     {!chosen.length?<div className="panel muted text-sm">No accepted offers on this date.</div>:
+     {!chosen.length?<div className="panel muted text-sm">No jobs scheduled for this date.</div>:
       chosen.map(o=><article key={o.id} className="panel space-y-2">
-       <div className="flex items-center justify-between gap-2"><h3 className="font-semibold">{o.job?.title||"Job"}</h3><span className="text-blue-300 text-xs shrink-0">Accepted</span></div>
+       <div className="flex items-center justify-between gap-2"><h3 className="font-semibold">{o.job?.title||"Job"}</h3><span className={o.status==="confirmed"?"text-green-300 text-xs shrink-0":"text-blue-300 text-xs shrink-0"}>{o.status==="confirmed"?"Booked":"Accepted"}</span></div>
        <p className="text-sm muted">{o.job?.venue||"Venue TBD"}</p>
        {o.job?.starts_at&&<p className="text-sm">{dateLabel(o.job.starts_at)}{o.job.ends_at?` – ${timeLabel(o.job.ends_at)}`:""}</p>}
        {o.job?.rate&&<p className="text-sm">{o.job.rate}</p>}
        {o.job?.details&&<p className="text-sm whitespace-pre-wrap break-words">{o.job.details}</p>}
-       <p className="text-xs text-blue-300">Awaiting staffing confirmation</p>
+       <p className={o.status==="confirmed"?"text-xs text-green-300":"text-xs text-blue-300"}>{o.status==="confirmed"?"Booking confirmed":"Awaiting staffing confirmation"}</p>
       </article>)}
     </section>
     {!accepted.length&&<p className="muted text-sm">Accept a job offer to see it on your calendar.</p>}

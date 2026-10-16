@@ -35,6 +35,6 @@ export default async function JobDetails({params}:Props){
    {job.details&&<div><span className="label">Call details</span><p className="whitespace-pre-wrap break-words">{job.details}</p></div>}
   </section>
   <ManageJob jobId={job.id} initialStatus={status}
-    technicians={technicians||[]} ratings={ratings||[]} offers={offers||[]} requirements={requirements||[]}/>
+    startsAt={job.starts_at} endsAt={job.ends_at} technicians={technicians||[]} ratings={ratings||[]} offers={offers||[]} requirements={requirements||[]}/>
  </main>;
 }

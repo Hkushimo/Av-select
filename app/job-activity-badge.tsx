@@ -17,7 +17,7 @@ export function useJobActivityCount(userId:string|null,role:string|null){
     const seen=role==="admin"?cursor?.responses_seen_at:cursor?.offers_seen_at;
     const since=seen||"1970-01-01T00:00:00Z";
     const query=role==="admin"?
-      db.from("job_offers").select("id",{count:"exact",head:true}).eq("status","accepted").gt("responded_at",since):
+      db.from("job_offers").select("id",{count:"exact",head:true}).in("status",["accepted","confirmed"]).gt("responded_at",since):
       db.from("job_offers").select("id",{count:"exact",head:true}).eq("technician_id",userId).eq("status","pending").gt("created_at",since);
     const {count:total,error}=await query;
     if(active&&!error)setCount(total||0);

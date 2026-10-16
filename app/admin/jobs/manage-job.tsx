@@ -8,14 +8,17 @@ type JobStatus="draft"|"open"|"closed";
 type Tech=RosterTech;
 type Offer={id:string;technician_id:string;status:string};
 type Requirement={skill:string;min_level:number;required:boolean};
-export default function ManageJob({jobId,initialStatus,technicians,ratings,offers,requirements}:{
- jobId:string;initialStatus:JobStatus;technicians:Tech[];ratings:RosterRating[];offers:Offer[];requirements:Requirement[];
+export default function ManageJob({jobId,initialStatus,startsAt,endsAt,technicians,ratings,offers,requirements}:{
+ jobId:string;initialStatus:JobStatus;startsAt:string;endsAt:string|null;technicians:Tech[];ratings:RosterRating[];offers:Offer[];requirements:Requirement[];
 }){
  const router=useRouter();
  const [status,setStatus]=useState<JobStatus>(initialStatus),[busy,setBusy]=useState(false);
  const [selected,setSelected]=useState<string[]>([]),[error,setError]=useState(""),[notice,setNotice]=useState("");
  const [skill,setSkill]=useState(""),[level,setLevel]=useState(3),[required,setRequired]=useState(true);
  const [existingOffers,setExistingOffers]=useState(offers);
+ const toLocal=(iso:string|null)=>{if(!iso)return "";const d=new Date(iso);return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,16)};
+ const [startInput,setStartInput]=useState(()=>toLocal(startsAt));
+ const [endInput,setEndInput]=useState(()=>toLocal(endsAt));
  const [currentRequirements,setCurrentRequirements]=useState(requirements);
  const [search,setSearch]=useState(""),[roleFilter,setRoleFilter]=useState(""),[equipmentFilter,setEquipmentFilter]=useState(""),[ratingFilter,setRatingFilter]=useState(""),[minimum,setMinimum]=useState(3);
  const offered=new Set(existingOffers.map(o=>o.technician_id));
@@ -30,6 +33,29 @@ export default function ManageJob({jobId,initialStatus,technicians,ratings,offer
   setBusy(true);setError("");setNotice("");
   const {error}=await browserDb().from("jobs").update({status:next}).eq("id",jobId);
   if(error)setError(error.message);else{setStatus(next);setNotice("Job status updated.");router.refresh()}
+  setBusy(false);
+ }
+ async function saveDates(){
+  const start=new Date(startInput),end=endInput?new Date(endInput):null;
+  if(!startInput||!Number.isFinite(start.getTime())||(end&&!Number.isFinite(end.getTime()))||(end&&end<=start)){setError("End must be after start.");return}
+  setBusy(true);setError("");setNotice("");
+  const {error}=await browserDb().from("jobs").update({starts_at:start.toISOString(),ends_at:end?end.toISOString():null}).eq("id",jobId);
+  if(error)setError(error.message);else{setNotice("Job dates updated for all technicians.");router.refresh()}
+  setBusy(false);
+ }
+ async function updateBooking(o:Offer,next:"accepted"|"confirmed"){
+  setBusy(true);setError("");setNotice("");
+  const {data,error}=await browserDb().from("job_offers").update({status:next}).eq("id",o.id).eq("job_id",jobId).eq("status",o.status).select("id").maybeSingle();
+  if(error)setError(error.message);else if(!data)setError("Offer changed. Refresh this page.");
+  else{setExistingOffers(items=>items.map(x=>x.id===o.id?{...x,status:next}:x));router.refresh()}
+  setBusy(false);
+ }
+ async function release(o:Offer){
+  if(!window.confirm("Remove this technician from the job and their schedule?"))return;
+  setBusy(true);setError("");setNotice("");
+  const {data,error}=await browserDb().from("job_offers").delete().eq("id",o.id).eq("job_id",jobId).select("id").maybeSingle();
+  if(error)setError(error.message);else if(!data)setError("Offer already changed.");
+  else{setExistingOffers(items=>items.filter(x=>x.id!==o.id));router.refresh()}
   setBusy(false);
  }
  async function addRequirement(){
@@ -79,6 +105,13 @@ export default function ManageJob({jobId,initialStatus,technicians,ratings,offer
    </div>
   </section>
   <section className="panel space-y-3">
+   <h2 className="font-semibold text-lg">Job dates & times</h2>
+   <p className="muted text-xs">Changes update every technician's schedule. Enter dates in your local time.</p>
+   <label><span className="label">Start</span><input type="datetime-local" value={startInput} onChange={e=>setStartInput(e.target.value)}/></label>
+   <label><span className="label">End</span><input type="datetime-local" value={endInput} onChange={e=>setEndInput(e.target.value)}/></label>
+   <button className="primary w-full" type="button" disabled={busy||!startInput} onClick={saveDates}>Save dates</button>
+  </section>
+  <section className="panel space-y-3">
    <h2 className="font-semibold text-lg">Staffing requirements</h2>
    <p className="muted text-xs">List roles or skills you're looking for. Admin skill ratings stay separate from technician self-selections.</p>
    {currentRequirements.length?<div className="space-y-2">
@@ -126,14 +159,18 @@ export default function ManageJob({jobId,initialStatus,technicians,ratings,offer
    <p className="muted text-xs">Offers appear in technicians' app accounts; this does not send SMS or push notifications.</p>
   </section>
   <section className="panel space-y-3">
-   <h2 className="font-semibold text-lg">Responses <span className="muted text-sm">({existingOffers.length})</span></h2>
-   {!existingOffers.length?<p className="muted text-sm">No offers sent yet.</p>:
-    existingOffers.map(o=><div key={o.id} className="flex gap-3 justify-between items-center border-b border-slate-700 py-2">
-     <div className="min-w-0"><p className="text-sm font-medium truncate">{technicians.find(t=>t.user_id===o.technician_id)?.full_name||"Technician"}</p>
-     <p className="muted text-xs capitalize">{o.status}</p></div>
-     {o.status==="pending"&&<button type="button" className="pill text-xs" disabled={busy} onClick={()=>cancelOffer(o)}>Cancel</button>}
-    </div>)}
-   <p className="muted text-xs">An accepted offer indicates interest, not final staffing confirmation.</p>
+   <h2 className="font-semibold text-lg">Crew & bookings ({existingOffers.length})</h2>
+   {existingOffers.length===0&&<p className="muted text-sm">No offers or bookings yet.</p>}
+   {existingOffers.map(o=><div key={o.id} className="py-3 border-b border-slate-700 space-y-2">
+    <p className="font-semibold text-sm">{technicians.find(t=>t.user_id===o.technician_id)?.full_name||"Technician"}</p>
+    <p className={o.status==="confirmed"?"text-green-300 text-xs":"muted text-xs"}>{o.status==="confirmed"?"Booked":o.status==="accepted"?"Accepted · Awaiting confirmation":o.status}</p>
+    <div className="flex flex-wrap gap-2">
+     {o.status==="accepted"&&<button className="primary text-xs" disabled={busy} onClick={()=>updateBooking(o,"confirmed")}>Confirm booking</button>}
+     {o.status==="confirmed"&&<button className="pill text-xs" disabled={busy} onClick={()=>updateBooking(o,"accepted")}>Undo confirmation</button>}
+     <button className="pill text-xs text-red-300" disabled={busy} onClick={()=>release(o)}>{o.status==="pending"?"Withdraw offer":"Release technician"}</button>
+    </div>
+   </div>)}
+   <p className="muted text-xs">Accepted means interested. Confirm booking to finalize. Release removes the offer and calendar entry.</p>
   </section>
   {notice&&<p className="text-green-300 text-sm" role="status">{notice}</p>}
   {error&&<p className="text-red-400 text-sm" role="alert">{error}</p>}

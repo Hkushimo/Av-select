@@ -11,13 +11,13 @@ export default async function TechnicianDashboard(){
  const [{data:profile,error:profileError},{data:offers,error:offersError}]=await Promise.all([
   db.from("technicians").select("full_name,completed_at").eq("user_id",user.id).maybeSingle(),
   db.from("job_offers").select("id,status,jobs(title,venue,starts_at,ends_at,rate,details,status)")
-   .eq("technician_id",user.id).in("status",["pending","accepted"])
+   .eq("technician_id",user.id).in("status",["pending","accepted","confirmed"])
  ]);
  if(!profile?.completed_at&&!profileError)redirect("/onboarding");
  const pending=offers?.filter(o=>o.status==="pending")||[];
- const accepted=offers?.filter(o=>o.status==="accepted")||[];
+ const accepted=offers?.filter(o=>o.status==="accepted"||o.status==="confirmed")||[];
  const now=Date.now();
- const upcoming=accepted.map(o=>({id:o.id,job:o.jobs as unknown as Job|null}))
+ const upcoming=accepted.map(o=>({id:o.id,status:o.status,job:o.jobs as unknown as Job|null}))
   .filter(o=>o.job?.starts_at&&new Date(o.job.ends_at||o.job.starts_at).getTime()>=now)
   .sort((a,b)=>new Date(a.job!.starts_at).getTime()-new Date(b.job!.starts_at).getTime())[0];
  const firstName=profile?.full_name?.trim().split(/\s+/)[0];
@@ -38,7 +38,7 @@ export default async function TechnicianDashboard(){
    <Link href="/offers" className="panel !p-4 space-y-2 block hover:border-blue-500">
     <p className="text-blue-300 text-xl" aria-hidden="true">▦</p>
     <p className="text-3xl font-bold">{accepted.length}</p>
-    <p className="muted text-sm">Accepted jobs</p>
+    <p className="muted text-sm">Accepted & booked</p>
    </Link>
   </div>
   <section className="panel space-y-3">
@@ -51,7 +51,7 @@ export default async function TechnicianDashboard(){
     <p className="muted text-sm">{date(upcoming.job.starts_at)}{upcoming.job.ends_at?" – "+date(upcoming.job.ends_at):""}</p>
     <p className="muted text-sm">{upcoming.job.venue||"Venue TBD"}</p>
     {upcoming.job.rate&&<p className="text-sm">{upcoming.job.rate}</p>}
-    <p className="text-xs text-blue-300">Accepted · Awaiting staffing confirmation</p>
+    <p className={upcoming.status==="confirmed"?"text-xs text-green-300":"text-xs text-blue-300"}>{upcoming.status==="confirmed"?"Booked · Confirmed":"Accepted · Awaiting staffing confirmation"}</p>
    </div>:<p className="muted text-sm">No upcoming accepted jobs yet. Check My Schedule for new offers.</p>}
   </section>
   <Link href="/profile" className="panel flex items-center justify-between gap-3 hover:border-blue-500">

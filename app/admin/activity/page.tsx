@@ -10,7 +10,7 @@ export default async function AdminActivity(){
  if(role!=="admin")redirect("/");
  const {data:activity,error}=await db.from("job_offers")
   .select("id,status,responded_at,technician_id,jobs(id,title)")
-  .eq("status","accepted").not("responded_at","is",null)
+  .in("status",["accepted","confirmed"]).not("responded_at","is",null)
   .order("responded_at",{ascending:false}).limit(100);
  const ids=Array.from(new Set((activity||[]).map(o=>o.technician_id)));
  const {data:people}=ids.length?await db.from("technicians").select("user_id,full_name").in("user_id",ids):{data:[] as {user_id:string;full_name:string}[]};
@@ -28,7 +28,7 @@ export default async function AdminActivity(){
      return <Link key={o.id} href={job?`/admin/jobs/${job.id}`:"/admin/jobs"} className="block p-4 hover:bg-slate-800/60">
       <div className="flex items-center gap-2 justify-between">
        <span className="font-semibold">{names.get(o.technician_id)||"Technician"}</span>
-       <span className="text-green-300 text-sm">Accepted</span>
+       <span className="text-green-300 text-sm">{o.status==="confirmed"?"Booked":"Accepted"}</span>
       </div>
       <p className="text-sm muted mt-1">{job?.title||"Job offer"}</p>
       {o.responded_at&&<p className="text-xs muted mt-1">{new Date(o.responded_at).toLocaleString("en-US",{dateStyle:"medium",timeStyle:"short"})}</p>}
