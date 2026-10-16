@@ -2,6 +2,7 @@
 import {ChangeEvent,useEffect,useState} from "react";
 import Link from "next/link";
 import {browserDb} from "@/lib/supabase";
+import {formatPhone} from "@/lib/phone";
 type Rating={skill:string;level:number};
 type Profile={full_name:string;phone:string;city:string;travel:string;other_skills:string;roles:string[];equipment:string[];avatar_path:string|null};
 export default function TechnicianProfile(){
@@ -16,7 +17,7 @@ export default function TechnicianProfile(){
   setId(user.id);
   const {data,error}=await db.from("technicians").select("full_name,phone,city,travel,other_skills,roles,equipment,avatar_path").eq("user_id",user.id).maybeSingle();
   if(!active)return;if(error){setError(error.message);return}
-  if(!data){location.replace("/onboarding");return}setProfile(data);
+  if(!data){location.replace("/onboarding");return}setProfile({...data,phone:formatPhone(data.phone||"")});
   const {data:myRatings,error:myRatingsError}=await db.from("skill_ratings").select("skill,level").eq("technician_id",user.id).order("skill");
   if(active){if(myRatingsError)setRatingsError("Could not load official proficiency ratings.");else setRatings(myRatings||[])}
   if(data.avatar_path){const {data:signed}=await db.storage.from("technician-avatars").createSignedUrl(data.avatar_path,600);
@@ -73,7 +74,7 @@ export default function TechnicianProfile(){
    </section>
    <section className="panel space-y-4"><h2 className="text-lg font-semibold">Contact and availability</h2>
     <label className="block"><span className="label">Full name</span><input value={profile.full_name} onChange={e=>field("full_name",e.target.value)}/></label>
-    <label className="block"><span className="label">Phone</span><input value={profile.phone} onChange={e=>field("phone",e.target.value)}/></label>
+    <label className="block"><span className="label">Phone</span><input type="tel" inputMode="tel" autoComplete="tel-national" placeholder="(555) 123-4567" value={profile.phone} onChange={e=>field("phone",formatPhone(e.target.value))}/></label>
     <label className="block"><span className="label">City / state</span><input value={profile.city} onChange={e=>field("city",e.target.value)}/></label>
     <label className="block"><span className="label">Travel preference</span><select value={profile.travel} onChange={e=>field("travel",e.target.value)}><option value="local">Local</option><option value="regional">Regional</option><option value="national">Nationwide</option><option value="international">International</option></select></label>
     <label className="block"><span className="label">Other skills or equipment</span><textarea rows={3} value={profile.other_skills} onChange={e=>field("other_skills",e.target.value)}/></label>

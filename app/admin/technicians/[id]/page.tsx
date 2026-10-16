@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { currentRole } from "@/lib/server";
 import TechnicianAvatar from "../../technician-avatar";
 import RatingEditor from "./rating-editor";
+import {formatPhone} from "@/lib/phone";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -44,7 +45,7 @@ export default async function TechnicianDetails({ params }: Props) {
       <section className="panel space-y-3">
         <h2 className="text-lg font-semibold">Contact</h2>
         <div><p className="label">Email</p>{account?.email ? <a className="text-blue-300 break-all underline" href={`mailto:${account.email}`}>{account.email}</a> : <p className="muted">Not available</p>}</div>
-        <div><p className="label">Phone</p>{technician.phone ? <a className="text-blue-300 underline" href={`tel:${technician.phone}`}>{technician.phone}</a> : <p className="muted">Not provided</p>}</div>
+        <div><p className="label">Phone</p>{technician.phone ? <a className="text-blue-300 underline" href={`tel:${technician.phone.replace(/[^\d+]/g,"")}`}>{formatPhone(technician.phone)}</a> : <p className="muted">Not provided</p>}</div>
         <div><p className="label">City / state</p><p>{technician.city || "Not provided"}</p></div>
       </section>
       <section className="panel space-y-3">

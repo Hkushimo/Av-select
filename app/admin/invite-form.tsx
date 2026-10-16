@@ -1,65 +1,50 @@
 "use client";
-import { useState } from "react";
-
-export default function InviteForm() {
-  const [inviteUrl, setInviteUrl] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
-
-  async function generate() {
-    setBusy(true); setError(""); setNotice(""); setInviteUrl("");
-    try {
-      const response = await fetch("/api/admin/invite", { method: "POST" });
-      const result = await response.json() as { inviteUrl?: string; error?: string };
-      if (!response.ok || !result.inviteUrl) throw new Error(result.error || "Could not create invitation.");
-      setInviteUrl(result.inviteUrl);
-      setNotice("Private invite ready. Tap Share to choose how to send it.");
-    } catch (err) { setError(err instanceof Error ? err.message : "Invite failed."); }
-    finally { setBusy(false); }
+import {useState} from "react";
+export default function InviteForm(){
+ const [inviteUrl,setInviteUrl]=useState("");
+ const [busy,setBusy]=useState(false),[error,setError]=useState(""),[notice,setNotice]=useState("");
+ async function generate(){
+  setBusy(true);setError("");setNotice("");setInviteUrl("");
+  try{
+   const response=await fetch("/api/admin/invite",{method:"POST"});
+   const result=await response.json() as {inviteUrl?:string;error?:string};
+   if(!response.ok||!result.inviteUrl)throw new Error(result.error||"Could not create invitation.");
+   setInviteUrl(result.inviteUrl);
+  }catch(e){setError(e instanceof Error?e.message:"Invite failed.");}
+  finally{setBusy(false)}
+ }
+ async function copy(){
+  if(!inviteUrl)return;
+  try{await navigator.clipboard.writeText(inviteUrl);setNotice("Link copied.");setError("")}
+  catch{setError("Copy the link from the field below.")}
+ }
+ async function share(){
+  if(!inviteUrl)return;
+  if(navigator.share){
+   try{
+    await navigator.share({title:"Join AV Select",text:"You're invited to join AV Select. This one-use link is for you:",url:inviteUrl});
+    return;
+   }catch(e){if(e instanceof Error&&e.name==="AbortError")return}
   }
-
-  async function copy() {
-    try { await navigator.clipboard.writeText(inviteUrl); setNotice("Invite link copied."); }
-    catch { setError("Please select and copy the link below."); }
-  }
-
-  async function share() {
-    if (!inviteUrl) return;
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: "Join AV Select",
-          text: "You've been invited to join the AV Select technician roster. This private link is for you:",
-          url: inviteUrl,
-        });
-        return;
-      } catch (err) { if (err instanceof Error && err.name === "AbortError") return; }
-    }
-    await copy();
-  }
-
-  return <details className="rounded-xl border border-slate-700/70 bg-[#121a29] px-4 py-3 group" id="invite-technician">
-    <summary className="flex cursor-pointer items-center justify-between gap-3 font-semibold list-none [&::-webkit-details-marker]:hidden">
-      <span className="flex items-center gap-2"><span className="text-blue-300">＋</span> Invite technician</span><span className="muted text-xs font-normal">Create & share link</span>
-    </summary>
-    <div className="space-y-3 pt-4"><p className="muted text-sm">Create a private, single-use link, then choose any app on your phone to share it.</p>
-    <button type="button" className="primary w-full sm:w-auto" disabled={busy} onClick={generate}>
-      {busy ? "Generating…" : "Generate invite link"}
-    </button>
-    {inviteUrl && <div className="space-y-3 border-t border-slate-700 pt-4">
-      <p className="text-sm font-medium">Your invite is ready</p>
-      <button type="button" className="primary w-full flex justify-center items-center gap-2" onClick={share}>
-        <span aria-hidden="true">↗</span> Share invite
-      </button>
-      <button type="button" className="pill w-full" onClick={copy}>Copy link instead</button>
-      <details className="text-xs muted"><summary className="cursor-pointer">Show private invitation link</summary>
-        <textarea readOnly rows={3} className="mt-2 text-xs" value={inviteUrl} onFocus={e => e.currentTarget.select()} />
-      </details>
-      <p className="muted text-xs">One person can use this link once. It expires in 7 days. Anyone with the link can claim it, so send it privately.</p>
-    </div>}
-    {notice && <p role="status" className="text-green-300 text-sm">{notice}</p>}
-    {error && <p role="alert" className="text-red-400 text-sm">{error}</p>}
-    </div>
-  </details>;
+  await copy();
+ }
+ return <details className="rounded-xl border border-slate-700/70 bg-[#121a29] px-4 py-3" id="invite-technician">
+  <summary className="flex cursor-pointer items-center justify-between gap-3 font-semibold list-none [&::-webkit-details-marker]:hidden">
+   <span className="flex items-center gap-2"><span className="text-blue-300">＋</span> Invite technician</span>
+   <span className="muted text-xs font-normal">Create & share link</span>
+  </summary>
+  <div className="pt-4 space-y-3">
+   <button type="button" className="primary w-full" disabled={busy} onClick={inviteUrl?share:generate}>
+    {busy?"Generating…":inviteUrl?"↗  Share invite":"Generate invite link"}
+   </button>
+   {inviteUrl?<div className="flex items-center justify-center gap-4 text-sm">
+    <button type="button" className="text-blue-300 underline" onClick={copy}>Copy link</button>
+    <button type="button" className="muted underline" disabled={busy} onClick={generate}>New link</button>
+   </div>:<p className="muted text-xs text-center">Single-use private link · Expires in 7 days</p>}
+   {inviteUrl&&<details className="text-xs muted"><summary className="cursor-pointer">View private link</summary><textarea aria-label="Private invite link" readOnly value={inviteUrl} rows={2} className="text-xs mt-2" onFocus={e=>e.currentTarget.select()}/></details>}
+   {inviteUrl&&<p className="muted text-xs text-center">Share privately. Anyone with the link can claim it once.</p>}
+   {notice&&<p role="status" className="text-green-300 text-xs text-center">{notice}</p>}
+   {error&&<p role="alert" className="text-red-300 text-sm">{error}</p>}
+  </div>
+ </details>;
 }
