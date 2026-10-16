@@ -32,12 +32,12 @@ export default function JobActivityBadge({userId,role}:{userId:string;role:"admi
   document.addEventListener("visibilitychange",onVisibility);
   return()=>{live=false;clearInterval(timer);window.removeEventListener("focus",onFocus);window.removeEventListener("avselect:activity-seen",onActivity);document.removeEventListener("visibilitychange",onVisibility)};
  },[userId,role]);
- const href=role==="admin"?"/admin/activity":"/offers";
- return <Link href={href} aria-label={count?`Job activity: ${count} unread`:"Job activity"}
-  className="pill relative inline-flex items-center justify-center min-w-10" title="Job activity">
-  <svg aria-hidden="true" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-   <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/>
-  </svg>
-  {count>0&&<span className="absolute -right-2 -top-2 min-w-5 h-5 px-1 rounded-full bg-red-600 text-white text-[11px] font-bold grid place-content-center border-2 border-[#0e1523]">{count>99?"99+":count}</span>}
+ const admin=role==="admin";
+ const href=admin?"/admin/activity":"/offers";
+ const label=admin?"Activity":"Offers";
+ return <Link href={href} aria-label={count>0?`${label}: ${count} unread`:label}
+  className="pill relative inline-flex items-center justify-center whitespace-nowrap" title={label}>
+  {label}
+  {count>0&&<span aria-hidden="true" className="absolute -right-2 -top-2 min-w-5 h-5 px-1 rounded-full bg-red-600 text-white text-[11px] font-bold grid place-content-center border-2 border-[#0e1523]">{count>99?"99+":count}</span>}
  </Link>;
 }
