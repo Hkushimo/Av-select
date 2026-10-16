@@ -15,3 +15,8 @@ alter table public.technician_invites
 -- auth.users -> profiles -> technicians -> job_offers / skill_ratings,
 -- and auth.users -> profiles -> job_activity_reads.
 -- No client access to Auth administration is added.
+
+-- Allow Auth/profile deletion to remove related job offers automatically.
+alter table public.job_offers drop constraint if exists job_offers_technician_id_fkey;
+alter table public.job_offers add constraint job_offers_technician_id_fkey
+  foreign key (technician_id) references public.technicians(user_id) on delete cascade;
