@@ -1,0 +1,38 @@
+import Link from "next/link";
+import {notFound,redirect} from "next/navigation";
+import {currentRole} from "@/lib/server";
+import ManageJob from "../manage-job";
+
+type Props={params:Promise<{id:string}>};
+export default async function JobDetails({params}:Props){
+ const {db,user,role}=await currentRole();
+ if(!user)redirect("/login");if(role!=="admin")redirect("/");
+ const {id}=await params;
+ if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id))notFound();
+ const [{data:job,error},{data:technicians},{data:offers},{data:requirements}]=await Promise.all([
+  db.from("jobs").select("id,title,venue,starts_at,ends_at,rate,details,status").eq("id",id).maybeSingle(),
+  db.from("technicians").select("user_id,full_name,city,roles").order("full_name"),
+  db.from("job_offers").select("id,technician_id,status").eq("job_id",id).order("created_at"),
+  db.from("job_requirements").select("skill,min_level,required").eq("job_id",id).order("skill")
+ ]);
+ if(error)throw new Error("Unable to load job.");
+ if(!job)notFound();
+ const status=job.status==="open"||job.status==="closed"?job.status:"draft";
+ const when=(value:string)=>new Date(value).toLocaleString("en-US",{dateStyle:"medium",timeStyle:"short"});
+ return <main className="mx-auto max-w-3xl px-4 py-6 space-y-5">
+  <Link href="/admin/jobs" className="text-blue-300 text-sm">← All jobs</Link>
+  <header>
+   <div className="text-blue-400 tracking-widest text-xs font-bold">JOB DETAILS</div>
+   <h1 className="text-2xl sm:text-3xl font-bold mt-2 break-words">{job.title}</h1>
+   <p className="muted mt-1">{job.venue||"Venue TBD"}</p>
+  </header>
+  <section className="panel space-y-3 text-sm">
+   <div><span className="label">Start</span><p>{when(job.starts_at)}</p></div>
+   {job.ends_at&&<div><span className="label">End</span><p>{when(job.ends_at)}</p></div>}
+   {job.rate&&<div><span className="label">Rate</span><p>{job.rate}</p></div>}
+   {job.details&&<div><span className="label">Call details</span><p className="whitespace-pre-wrap break-words">{job.details}</p></div>}
+  </section>
+  <ManageJob jobId={job.id} initialStatus={status}
+    technicians={technicians||[]} offers={offers||[]} requirements={requirements||[]}/>
+ </main>;
+}
