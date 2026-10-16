@@ -1,6 +1,6 @@
 "use client";
 import {ChangeEvent,useEffect,useState} from "react";
-import Link from "next/link";
+import ProfileSelections from "./profile-selections";
 import {browserDb} from "@/lib/supabase";
 import {formatPhone} from "@/lib/phone";
 type Rating={skill:string;level:number};
@@ -80,22 +80,21 @@ export default function TechnicianProfile(){
     <label className="block"><span className="label">Other skills or equipment</span><textarea rows={3} value={profile.other_skills} onChange={e=>field("other_skills",e.target.value)}/></label>
     <button type="button" className="primary w-full" disabled={busy} onClick={save}>{busy?"Saving…":"Save profile"}</button>
    </section>
-   <section className="panel space-y-3">
-    <h2 className="text-lg font-semibold">My official proficiency ratings</h2>
-    <p className="muted text-sm">These assessments are assigned by AV Select administrators. You can view them here, but only an administrator can change them.</p>
+   <section className="panel !p-4 sm:!p-5 space-y-3">
+    <h2 className="text-lg font-semibold">Official proficiency ratings</h2>
+    <p className="muted text-xs sm:text-sm">Rated by AV Select admins · Read-only</p>
     {ratingsError?<p role="alert" className="text-red-300 text-sm">{ratingsError}</p>:
      ratings.length?ratings.map(r=><div key={r.skill} className="space-y-2 border-t border-slate-700 py-3">
-      <div className="flex items-center justify-between gap-3"><span className="font-medium break-words">{r.skill}</span><span className="text-blue-300 text-sm shrink-0">{r.level}/5</span></div>
-      <div role="img" aria-label={r.skill+": "+r.level+" of 5"} className="h-2.5 w-full rounded-full bg-slate-700 overflow-hidden">
-       <div className="h-full bg-blue-500 rounded-full" style={{width:(r.level/5*100)+"%"}}/>
+      <div className="flex items-center justify-between gap-3">
+       <span className="font-medium text-sm break-words">{r.skill}</span>
+       <span className="rounded-full bg-blue-500/15 text-blue-300 px-2.5 py-1 text-xs font-semibold shrink-0">{r.level}/5</span>
       </div>
-     </div>):<p className="muted text-sm">An administrator hasn't assigned any proficiency ratings yet.</p>}
+      <div role="img" aria-label={r.skill+": "+r.level+" of 5"} className="h-2 w-full rounded-full bg-slate-700 overflow-hidden">
+       <div className="h-full rounded-full bg-blue-500" style={{width:(r.level/5*100)+"%"}}/>
+      </div>
+     </div>):<p className="muted text-sm border-t border-slate-700 pt-3">No official ratings assigned yet.</p>}
    </section>
-   <section className="panel space-y-3"><h2 className="text-lg font-semibold">Positions and equipment</h2>
-    <p className="muted text-sm">{profile.roles.join(", ")||"No positions selected"}</p>
-    <p className="muted text-sm">{profile.equipment.join(", ")||"No equipment selected"}</p>
-    <Link href="/onboarding" className="primary inline-block">Edit positions and equipment →</Link>
-   </section>
+   <ProfileSelections roles={profile.roles||[]} equipment={profile.equipment||[]}/>
   </>}
   {status&&<p role="status" className="text-green-300 text-sm">{status}</p>}
   {profile&&error&&<p role="alert" className="text-red-400 text-sm">{error}</p>}
