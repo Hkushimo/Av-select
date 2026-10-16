@@ -2,13 +2,14 @@
 import {useState} from "react";
 import {useRouter} from "next/navigation";
 import {browserDb} from "@/lib/supabase";
+import {rosterMatch, type RosterTech, type RosterRating} from "../roster-filters";
 
 type JobStatus="draft"|"open"|"closed";
-type Tech={user_id:string;full_name:string;city:string;roles:string[]};
+type Tech=RosterTech;
 type Offer={id:string;technician_id:string;status:string};
 type Requirement={skill:string;min_level:number;required:boolean};
-export default function ManageJob({jobId,initialStatus,technicians,offers,requirements}:{
- jobId:string;initialStatus:JobStatus;technicians:Tech[];offers:Offer[];requirements:Requirement[];
+export default function ManageJob({jobId,initialStatus,technicians,ratings,offers,requirements}:{
+ jobId:string;initialStatus:JobStatus;technicians:Tech[];ratings:RosterRating[];offers:Offer[];requirements:Requirement[];
 }){
  const router=useRouter();
  const [status,setStatus]=useState<JobStatus>(initialStatus),[busy,setBusy]=useState(false);
@@ -16,8 +17,15 @@ export default function ManageJob({jobId,initialStatus,technicians,offers,requir
  const [skill,setSkill]=useState(""),[level,setLevel]=useState(3),[required,setRequired]=useState(true);
  const [existingOffers,setExistingOffers]=useState(offers);
  const [currentRequirements,setCurrentRequirements]=useState(requirements);
+ const [search,setSearch]=useState(""),[roleFilter,setRoleFilter]=useState(""),[equipmentFilter,setEquipmentFilter]=useState(""),[ratingFilter,setRatingFilter]=useState(""),[minimum,setMinimum]=useState(3);
  const offered=new Set(existingOffers.map(o=>o.technician_id));
  const available=technicians.filter(t=>!offered.has(t.user_id));
+ const roleOptions=Array.from(new Set(technicians.flatMap(t=>t.roles||[]))).sort();
+ const equipmentOptions=Array.from(new Set(technicians.flatMap(t=>t.equipment||[]))).sort();
+ const skillOptions=Array.from(new Set(ratings.map(r=>r.skill))).sort();
+ const filteredAvailable=available.filter(t=>rosterMatch(t,ratings,search,roleFilter,equipmentFilter,"",ratingFilter,minimum));
+ const clearFilters=()=>{setSearch("");setRoleFilter("");setEquipmentFilter("");setRatingFilter("");setMinimum(3)};
+
  async function changeStatus(next:JobStatus){
   setBusy(true);setError("");setNotice("");
   const {error}=await browserDb().from("jobs").update({status:next}).eq("id",jobId);
@@ -94,11 +102,23 @@ export default function ManageJob({jobId,initialStatus,technicians,offers,requir
    <h2 className="font-semibold text-lg">Send job offers</h2>
    <p className="muted text-sm">Select technicians to offer this job. An offer is not a confirmed booking.</p>
    {status!=="open"&&<p className="text-amber-200 text-sm">Set job status to Open to send offers.</p>}
+   <div className="space-y-2 border border-slate-700 rounded-xl p-3">
+    <input type="search" aria-label="Search candidates" placeholder="Search names, city, specialties…" value={search} onChange={e=>setSearch(e.target.value)}/>
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+     <label><span className="label">Position</span><select value={roleFilter} onChange={e=>setRoleFilter(e.target.value)}><option value="">Any position</option>{roleOptions.map(r=><option key={r} value={r}>{r}</option>)}</select></label>
+     <label><span className="label">Equipment</span><select value={equipmentFilter} onChange={e=>setEquipmentFilter(e.target.value)}><option value="">Any equipment</option>{equipmentOptions.map(r=><option key={r} value={r}>{r}</option>)}</select></label>
+     <label><span className="label">Officially rated skill</span><select value={ratingFilter} onChange={e=>setRatingFilter(e.target.value)}><option value="">Any rating / unrated</option>{skillOptions.map(r=><option key={r} value={r}>{r}</option>)}</select></label>
+     {ratingFilter&&<label><span className="label">Minimum rating: {minimum}/5</span><input aria-label="Minimum rating" type="range" min={1} max={5} value={minimum} onChange={e=>setMinimum(Number(e.target.value))} className="!p-0 accent-blue-500"/></label>}
+    </div>
+    <div className="flex items-center justify-between gap-2"><span className="muted text-xs">{filteredAvailable.length} matching candidates · {selected.length} selected</span><button type="button" className="text-blue-300 text-xs underline" onClick={clearFilters}>Clear filters</button></div>
+    <p className="muted text-xs">Roles and equipment are self-reported. Official ratings are admin assessments; filtering by rating excludes unrated candidates.</p>
+   </div>
    {!available.length?<p className="muted text-sm">No additional technicians available to offer.</p>:
-    <div className="space-y-2 max-h-72 overflow-auto">{available.map(t=><label key={t.user_id} className="flex gap-3 items-center rounded-lg border border-slate-700 px-3 py-3">
+    !filteredAvailable.length?<p className="muted text-sm">No technicians match. Adjust or clear filters.</p>:
+    <div className="space-y-2 max-h-72 overflow-auto">{filteredAvailable.map(t=><label key={t.user_id} className="flex gap-3 items-center rounded-lg border border-slate-700 px-3 py-3">
      <input className="!w-auto" type="checkbox" checked={selected.includes(t.user_id)} onChange={()=>toggle(t.user_id)} />
      <span className="min-w-0"><span className="font-medium text-sm block">{t.full_name||"Incomplete profile"}</span>
-      <span className="muted text-xs block break-words">{[t.city,t.roles?.slice(0,2).join(", ")].filter(Boolean).join(" · ")}</span></span>
+      <span className="muted text-xs block break-words">{[t.city,t.roles?.slice(0,2).join(", ")].filter(Boolean).join(" · ")}{ratingFilter&&<span className="text-blue-300"> · {ratingFilter} {ratings.find(r=>r.technician_id===t.user_id&&r.skill===ratingFilter)?.level}/5</span>}</span></span>
     </label>)}</div>}
    <button type="button" className="primary w-full" disabled={busy||status!=="open"||!selected.length} onClick={sendOffers}>
     {busy?"Saving…":`Offer job to ${selected.length} technician${selected.length===1?"":"s"}`}

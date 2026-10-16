@@ -9,11 +9,12 @@ export default async function JobDetails({params}:Props){
  if(!user)redirect("/login");if(role!=="admin")redirect("/");
  const {id}=await params;
  if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id))notFound();
- const [{data:job,error},{data:technicians},{data:offers},{data:requirements}]=await Promise.all([
+ const [{data:job,error},{data:technicians},{data:offers},{data:requirements},{data:ratings}]=await Promise.all([
   db.from("jobs").select("id,title,venue,starts_at,ends_at,rate,details,status").eq("id",id).maybeSingle(),
-  db.from("technicians").select("user_id,full_name,city,roles").order("full_name"),
+  db.from("technicians").select("user_id,full_name,city,travel,roles,equipment,avatar_path").order("full_name"),
   db.from("job_offers").select("id,technician_id,status").eq("job_id",id).order("created_at"),
-  db.from("job_requirements").select("skill,min_level,required").eq("job_id",id).order("skill")
+  db.from("job_requirements").select("skill,min_level,required").eq("job_id",id).order("skill"),
+  db.from("skill_ratings").select("technician_id,skill,level")
  ]);
  if(error)throw new Error("Unable to load job.");
  if(!job)notFound();
@@ -33,6 +34,6 @@ export default async function JobDetails({params}:Props){
    {job.details&&<div><span className="label">Call details</span><p className="whitespace-pre-wrap break-words">{job.details}</p></div>}
   </section>
   <ManageJob jobId={job.id} initialStatus={status}
-    technicians={technicians||[]} offers={offers||[]} requirements={requirements||[]}/>
+    technicians={technicians||[]} ratings={ratings||[]} offers={offers||[]} requirements={requirements||[]}/>
  </main>;
 }
