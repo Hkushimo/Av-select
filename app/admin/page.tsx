@@ -8,41 +8,53 @@ export default async function Admin() {
   const { db, user, role } = await currentRole();
   if (!user) redirect("/login");
   if (role !== "admin") redirect("/");
-  const [{ data: techs }, { data: ratings }, { data: jobs }] = await Promise.all([
-    db.from("technicians").select("user_id,full_name,city,roles,equipment,completed_at,avatar_path").order("full_name"),
-    db.from("skill_ratings").select("technician_id,skill,level"),
-    db.from("jobs").select("id,title,status,starts_at").order("starts_at", { ascending: false }).limit(8),
+
+  const [{ data: techs }, { count: ratingCount }, { count: jobCount }] = await Promise.all([
+    db.from("technicians").select("user_id,full_name,city,roles,avatar_path").order("full_name"),
+    db.from("skill_ratings").select("id", { count: "exact", head: true }),
+    db.from("jobs").select("id", { count: "exact", head: true }),
   ]);
-  return <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6 space-y-6 sm:space-y-8">
-    <header className="flex flex-col sm:flex-row gap-4 sm:items-center sm:justify-between">
-      <div className="min-w-0">
-        <p className="tracking-[.22em] text-blue-400 font-bold text-xs sm:text-sm">AV SELECT · ADMIN</p>
-        <h1 className="text-2xl sm:text-4xl font-bold mt-2 leading-tight">Technician roster</h1>
+
+  return <main className="mx-auto max-w-5xl px-4 py-5 sm:px-6 space-y-5">
+    <header className="flex items-center justify-between gap-3">
+      <div>
+        <p className="text-xs tracking-[.16em] text-blue-400 font-semibold">ADMIN</p>
+        <h1 className="text-2xl sm:text-3xl font-bold mt-1">Your crew</h1>
       </div>
-      <Link href="/admin/jobs" className="pill text-center sm:shrink-0">Manage jobs →</Link>
+      <Link href="/admin/jobs" className="pill shrink-0 text-blue-200">Jobs →</Link>
     </header>
-    <InviteForm/>
-    <div className="grid grid-cols-3 gap-2 sm:gap-4">
-      <div className="panel !p-3 sm:!p-5"><p className="muted text-xs sm:text-base">Technicians</p><p className="text-2xl sm:text-4xl font-bold mt-1">{techs?.length ?? 0}</p></div>
-      <div className="panel !p-3 sm:!p-5"><p className="muted text-xs sm:text-base">Skill ratings</p><p className="text-2xl sm:text-4xl font-bold mt-1">{ratings?.length ?? 0}</p></div>
-      <div className="panel !p-3 sm:!p-5"><p className="muted text-xs sm:text-base">Recent jobs</p><p className="text-2xl sm:text-4xl font-bold mt-1">{jobs?.length ?? 0}</p></div>
+
+    <div className="flex items-center flex-wrap gap-x-4 gap-y-1 text-sm muted border-b border-slate-800 pb-4">
+      <span><strong className="text-white">{techs?.length ?? 0}</strong> technicians</span>
+      <span><strong className="text-white">{ratingCount ?? 0}</strong> ratings</span>
+      <span><strong className="text-white">{jobCount ?? 0}</strong> jobs</span>
     </div>
-    <section className="panel space-y-4">
-      <h2 className="text-lg sm:text-xl font-bold">Private roster</h2>
-      {!techs?.length ? <p className="muted text-sm">No technicians yet. Generate a link above to invite your first technician.</p> :
-        techs.map(t => <Link key={t.user_id} href={`/admin/technicians/${t.user_id}`}
-          className="block border-t border-slate-700 py-4 px-2 -mx-2 rounded-lg hover:bg-slate-800/60 focus-visible:outline-2 focus-visible:outline-blue-400 transition-colors"
-          aria-label={`View ${t.full_name || "technician"} profile`}>
-          <div className="flex items-center gap-3">
-            <TechnicianAvatar path={t.avatar_path} name={t.full_name || "Technician"}/>
+
+    <InviteForm/>
+
+    <section className="space-y-3" aria-label="Technician roster">
+      <div className="flex items-baseline justify-between">
+        <h2 className="text-lg font-semibold">Technician roster</h2>
+        <span className="text-xs muted">{techs?.length ?? 0} people</span>
+      </div>
+      <div className="rounded-2xl border border-slate-700/70 bg-[#121a29] px-3 sm:px-4">
+        {!techs?.length ? <p className="muted text-sm py-6">No technicians yet. Use Invite above to add your first person.</p> :
+          techs.map((t, index) => <Link
+            key={t.user_id}
+            href={`/admin/technicians/${t.user_id}`}
+            className={`flex items-center gap-3 py-3.5 rounded-lg hover:bg-slate-800/60 focus-visible:outline-2 focus-visible:outline-blue-400 ${index ? "border-t border-slate-700/70" : ""}`}
+            aria-label={`View ${t.full_name || "technician"} profile`}
+          >
+            <TechnicianAvatar path={t.avatar_path} name={t.full_name || "Technician"} />
             <div className="min-w-0 flex-1">
-              <div className="font-bold break-words">{t.full_name || "Incomplete profile"}</div>
-              <p className="muted text-sm mt-1 break-words">{t.city || "Location not provided"} · {t.roles?.slice(0,2).join(", ") || "No positions yet"}</p>
+              <div className="font-semibold truncate">{t.full_name || "Incomplete profile"}</div>
+              <div className="muted text-xs sm:text-sm mt-0.5 truncate">
+                {[t.city, t.roles?.[0]].filter(Boolean).join(" · ") || "Profile incomplete"}
+              </div>
             </div>
-            <span className="text-blue-300 text-xl shrink-0" aria-hidden="true">›</span>
-          </div>
-          <p className="text-xs text-blue-300 mt-2">View full profile →</p>
-        </Link>)}
+            <span aria-hidden="true" className="text-blue-300 text-xl pr-1">›</span>
+          </Link>)}
+      </div>
     </section>
   </main>;
 }
