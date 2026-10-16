@@ -1,6 +1,7 @@
 import {currentRole} from "@/lib/server";
 import {redirect} from "next/navigation";
 import {OfferActions} from "./responses";
+import MarkActivitySeen from "@/app/mark-activity-seen";
 export default async function Offers(){
  const {db,user,role}=await currentRole();
  if(!user)redirect("/login");
@@ -9,6 +10,7 @@ export default async function Offers(){
   .select("id,status,jobs(title,venue,starts_at,ends_at,rate,details,status)")
   .eq("technician_id",user.id).order("created_at",{ascending:false});
  return <main className="mx-auto max-w-3xl px-4 py-6 space-y-5">
+  {!error&&<MarkActivitySeen userId={user.id} kind="offers"/>}
   <div><p className="tracking-widest text-blue-400 text-xs font-bold">AV SELECT</p><h1 className="text-2xl sm:text-3xl font-bold mt-1">Your job offers</h1></div>
   {error&&<p className="text-red-300">Could not load job offers: {error.message}</p>}
   {!offers?.length&&!error?<div className="panel muted">No job offers yet. You'll see new offers here when an admin sends them.</div>:
