@@ -41,7 +41,7 @@ export default function AccountNav(){
   <div className="mx-auto max-w-6xl px-4 py-3 flex flex-wrap items-center gap-2 text-sm">
    <Link href="/" className="font-bold tracking-widest text-blue-400 mr-auto">AV SELECT</Link>
    {email?<>{role==="technician"&&<><Link className="pill" href="/offers">Offers</Link><Link className="pill" href="/profile">My profile</Link></>}
-    {role==="admin"&&<Link className="pill" href="/admin">Dashboard</Link>}
+    {role==="admin"&&!pathname.startsWith("/admin")&&<Link className="pill" href="/admin">Dashboard</Link>}
     <button type="button" className="pill" onClick={logout}>Log out</button></>:
     <Link className="pill" href="/login">Sign in</Link>}
   </div>
