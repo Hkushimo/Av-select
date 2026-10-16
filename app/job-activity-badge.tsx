@@ -34,7 +34,7 @@ export default function JobActivityBadge({userId,role}:{userId:string;role:"admi
  },[userId,role]);
  const admin=role==="admin";
  const href=admin?"/admin/activity":"/offers";
- const label=admin?"Activity":"Offers";
+ const label=admin?"Activity":"My Schedule";
  return <Link href={href} aria-label={count>0?`${label}: ${count} unread`:label}
   className="pill relative inline-flex items-center justify-center whitespace-nowrap" title={label}>
   {label}

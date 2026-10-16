@@ -1,0 +1,112 @@
+"use client";
+import {useMemo,useState} from "react";
+import MarkActivitySeen from "@/app/mark-activity-seen";
+import {OfferActions} from "./responses";
+
+type Job={title:string;venue:string;starts_at:string;ends_at:string|null;rate:string;details:string;status:string};
+export type ScheduleOffer={id:string;status:string;job:Job|null};
+const dayKey=(date:Date)=>[date.getFullYear(),String(date.getMonth()+1).padStart(2,"0"),String(date.getDate()).padStart(2,"0")].join("-");
+const dateLabel=(iso:string)=>new Date(iso).toLocaleString("en-US",{dateStyle:"medium",timeStyle:"short"});
+const timeLabel=(iso:string)=>new Date(iso).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"});
+
+function OfferCard({offer}:{offer:ScheduleOffer}){
+ const job=offer.job;
+ return <article className="panel space-y-3">
+  <div className="flex items-start justify-between gap-3">
+   <h2 className="text-lg sm:text-xl font-bold break-words">{job?.title||"Job"}</h2>
+   <span className={"pill text-xs capitalize shrink-0 "+(offer.status==="accepted"?"text-green-300":"text-amber-200")}>{offer.status}</span>
+  </div>
+  <p className="muted text-sm">{job?.venue||"Venue TBD"}</p>
+  {job?.starts_at&&<p className="text-sm"><span className="muted">Start: </span>{dateLabel(job.starts_at)}</p>}
+  {job?.ends_at&&<p className="text-sm"><span className="muted">End: </span>{dateLabel(job.ends_at)}</p>}
+  {job?.rate&&<p className="text-sm"><span className="muted">Rate: </span>{job.rate}</p>}
+  {job?.details&&<p className="text-sm whitespace-pre-wrap break-words">{job.details}</p>}
+  {offer.status==="pending"&&<OfferActions id={offer.id}/>}
+  {offer.status==="accepted"&&<p className="text-blue-300 text-xs">Accepted · Awaiting staffing confirmation. This is not yet a confirmed booking.</p>}
+ </article>;
+}
+
+export default function ScheduleTabs({offers,userId}:{offers:ScheduleOffer[];userId:string}){
+ const [tab,setTab]=useState<"offers"|"calendar">("offers");
+ const [today]=useState(()=>new Date());
+ const [month,setMonth]=useState(()=>new Date(today.getFullYear(),today.getMonth(),1));
+ const [selectedDay,setSelectedDay]=useState(()=>dayKey(today));
+ const accepted=useMemo(()=>offers.filter(o=>o.status==="accepted"&&o.job?.starts_at).sort((a,b)=>new Date(a.job!.starts_at).getTime()-new Date(b.job!.starts_at).getTime()),[offers]);
+ const pending=offers.filter(o=>o.status==="pending");
+ const other=offers.filter(o=>o.status==="accepted");
+ const byDay=useMemo(()=>{
+  const map=new Map<string,ScheduleOffer[]>();
+  for(const offer of accepted){
+   const start=new Date(offer.job!.starts_at);
+   const end=offer.job?.ends_at?new Date(offer.job.ends_at):start;
+   const endTime=Math.max(start.getTime(),end.getTime());
+   const cursor=new Date(start.getFullYear(),start.getMonth(),start.getDate(),12);
+   let count=0;
+   while(cursor.getTime()<=endTime&&count<367){
+    const key=dayKey(cursor);
+    map.set(key,[...(map.get(key)||[]),offer]);
+    cursor.setDate(cursor.getDate()+1);
+    count++;
+   }
+  }
+  return map;
+ },[accepted]);
+ const days=useMemo(()=>{
+  const first=new Date(month.getFullYear(),month.getMonth(),1);
+  const start=new Date(first);start.setDate(1-first.getDay());
+  return Array.from({length:42},(_,i)=>{const d=new Date(start);d.setDate(start.getDate()+i);return d});
+ },[month]);
+ const chosen=byDay.get(selectedDay)||[];
+ const monthLabel=month.toLocaleDateString("en-US",{month:"long",year:"numeric"});
+ function moveMonth(offset:number){
+  const next=new Date(month.getFullYear(),month.getMonth()+offset,1);
+  setMonth(next);
+  setSelectedDay(dayKey(next));
+ }
+ const selectedDate=new Date(Number(selectedDay.slice(0,4)),Number(selectedDay.slice(5,7))-1,Number(selectedDay.slice(8,10)));
+ return <div className="space-y-4">
+  <div role="tablist" aria-label="My Schedule sections" className="flex rounded-xl bg-slate-800 p-1 gap-1">
+   <button type="button" role="tab" aria-selected={tab==="offers"} onClick={()=>setTab("offers")} className={"flex-1 rounded-lg px-3 py-3 text-sm font-semibold "+(tab==="offers"?"bg-blue-600 text-white":"text-slate-300 hover:bg-slate-700")}>Job offers{pending.length>0?` (${pending.length})`:""}</button>
+   <button type="button" role="tab" aria-selected={tab==="calendar"} onClick={()=>setTab("calendar")} className={"flex-1 rounded-lg px-3 py-3 text-sm font-semibold "+(tab==="calendar"?"bg-blue-600 text-white":"text-slate-300 hover:bg-slate-700")}>Calendar</button>
+  </div>
+  {tab==="offers"?<div role="tabpanel" className="space-y-4">
+    <MarkActivitySeen userId={userId} kind="offers"/>
+    {pending.length>0&&<section className="space-y-3"><h2 className="font-semibold text-lg">New opportunities <span className="muted text-sm">({pending.length})</span></h2>{pending.map(o=><OfferCard key={o.id} offer={o}/>)}</section>}
+    {other.length>0&&<section className="space-y-3"><h2 className="font-semibold text-lg">Accepted offers <span className="muted text-sm">({other.length})</span></h2>{other.map(o=><OfferCard key={o.id} offer={o}/>)}</section>}
+    {!pending.length&&!other.length&&<div className="panel muted text-sm">No job offers right now. New opportunities will appear here when an admin sends them.</div>}
+   </div>:<div role="tabpanel" className="space-y-4">
+    <p className="muted text-sm">Accepted offers appear here while awaiting confirmation. They are not confirmed work bookings.</p>
+    <section className="panel space-y-4 !p-3 sm:!p-5">
+     <div className="flex items-center justify-between gap-2">
+      <button type="button" onClick={()=>moveMonth(-1)} className="pill" aria-label="Previous month">‹</button>
+      <h2 className="font-semibold text-lg text-center">{monthLabel}</h2>
+      <button type="button" onClick={()=>moveMonth(1)} className="pill" aria-label="Next month">›</button>
+     </div>
+     <div className="grid grid-cols-7 gap-1 text-center">{["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map(d=><div key={d} className="muted text-xs py-1">{d}</div>)}
+      {days.map(d=>{
+       const key=dayKey(d),count=byDay.get(key)?.length||0,isCurrentMonth=d.getMonth()===month.getMonth(),selected=key===selectedDay,isToday=key===dayKey(today);
+       return <button type="button" key={key} onClick={()=>setSelectedDay(key)}
+        aria-label={`${d.toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"})}, ${count} accepted ${count===1?"offer":"offers"}`}
+        aria-pressed={selected} className={"min-h-14 sm:min-h-16 rounded-lg border flex flex-col items-center justify-start py-2 gap-1 text-sm "+(selected?"border-blue-400 bg-blue-600/25":isToday?"border-blue-700 bg-slate-800":"border-transparent hover:bg-slate-800")+(isCurrentMonth?" text-white":" text-slate-500")}>
+        <span className={isToday?"font-bold text-blue-300":""}>{d.getDate()}</span>
+        {count>0&&<span className="text-[10px] bg-blue-500 rounded-full text-white min-w-4 px-1 leading-4">{count}</span>}
+       </button>;
+      })}
+     </div>
+    </section>
+    <section className="space-y-3">
+     <h2 className="text-lg font-semibold">{selectedDate.toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric"})}</h2>
+     {!chosen.length?<div className="panel muted text-sm">No accepted offers on this date.</div>:
+      chosen.map(o=><article key={o.id} className="panel space-y-2">
+       <div className="flex items-center justify-between gap-2"><h3 className="font-semibold">{o.job?.title||"Job"}</h3><span className="text-blue-300 text-xs shrink-0">Accepted</span></div>
+       <p className="text-sm muted">{o.job?.venue||"Venue TBD"}</p>
+       {o.job?.starts_at&&<p className="text-sm">{dateLabel(o.job.starts_at)}{o.job.ends_at?` – ${timeLabel(o.job.ends_at)}`:""}</p>}
+       {o.job?.rate&&<p className="text-sm">{o.job.rate}</p>}
+       {o.job?.details&&<p className="text-sm whitespace-pre-wrap break-words">{o.job.details}</p>}
+       <p className="text-xs text-blue-300">Awaiting staffing confirmation</p>
+      </article>)}
+    </section>
+    {!accepted.length&&<p className="muted text-sm">Accept a job offer to see it on your calendar.</p>}
+   </div>}
+ </div>;
+}
