@@ -40,8 +40,9 @@ export default function ScheduleTabs({offers,userId}:{offers:ScheduleOffer[];use
   for(const offer of accepted){
    const start=new Date(offer.job!.starts_at);
    const end=offer.job?.ends_at?new Date(offer.job.ends_at):start;
-   const endTime=Math.max(start.getTime(),end.getTime());
-   const cursor=new Date(start.getFullYear(),start.getMonth(),start.getDate(),12);
+   const lastDay=new Date(Math.max(start.getTime(),end.getTime()));
+   const endTime=new Date(lastDay.getFullYear(),lastDay.getMonth(),lastDay.getDate()).getTime();
+   const cursor=new Date(start.getFullYear(),start.getMonth(),start.getDate());
    let count=0;
    while(cursor.getTime()<=endTime&&count<367){
     const key=dayKey(cursor);
@@ -76,7 +77,13 @@ export default function ScheduleTabs({offers,userId}:{offers:ScheduleOffer[];use
     {other.length>0&&<section className="space-y-3"><h2 className="font-semibold text-lg">Accepted & booked jobs <span className="muted text-sm">({other.length})</span></h2>{other.map(o=><OfferCard key={o.id} offer={o}/>)}</section>}
     {!pending.length&&!other.length&&<div className="panel muted text-sm">No job offers right now. New opportunities will appear here when an admin sends them.</div>}
    </div>:<div role="tabpanel" className="space-y-4">
-    <p className="muted text-sm">Your accepted and confirmed jobs appear here. Only jobs marked Booked are confirmed.</p>
+    <div className="flex items-center justify-between flex-wrap gap-x-4 gap-y-2">
+     <p className="muted text-xs">Accepted shifts are tentative until confirmed.</p>
+     <div className="flex items-center gap-3 text-xs muted">
+      <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-blue-500"/>Accepted</span>
+      <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-green-500"/>Booked</span>
+     </div>
+    </div>
     <section className="panel space-y-4 !p-3 sm:!p-5">
      <div className="flex items-center justify-between gap-2">
       <button type="button" onClick={()=>moveMonth(-1)} className="pill" aria-label="Previous month">‹</button>
@@ -85,12 +92,12 @@ export default function ScheduleTabs({offers,userId}:{offers:ScheduleOffer[];use
      </div>
      <div className="grid grid-cols-7 gap-1 text-center">{["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map(d=><div key={d} className="muted text-xs py-1">{d}</div>)}
       {days.map(d=>{
-       const key=dayKey(d),count=byDay.get(key)?.length||0,isCurrentMonth=d.getMonth()===month.getMonth(),selected=key===selectedDay,isToday=key===dayKey(today);
+       const key=dayKey(d),dayOffers=byDay.get(key)||[],acceptedCount=dayOffers.filter(o=>o.status==="accepted").length,confirmedCount=dayOffers.filter(o=>o.status==="confirmed").length,count=dayOffers.length,isCurrentMonth=d.getMonth()===month.getMonth(),selected=key===selectedDay,isToday=key===dayKey(today);
        return <button type="button" key={key} onClick={()=>setSelectedDay(key)}
-        aria-label={`${d.toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"})}, ${count} scheduled ${count===1?"job":"jobs"}`}
+        aria-label={`${d.toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"})}, $${acceptedCount} accepted, ${confirmedCount} booked`}
         aria-pressed={selected} className={"min-h-14 sm:min-h-16 rounded-lg border flex flex-col items-center justify-start py-2 gap-1 text-sm "+(selected?"border-blue-400 bg-blue-600/25":isToday?"border-blue-700 bg-slate-800":"border-transparent hover:bg-slate-800")+(isCurrentMonth?" text-white":" text-slate-500")}>
         <span className={isToday?"font-bold text-blue-300":""}>{d.getDate()}</span>
-        {count>0&&<span className="text-[10px] bg-blue-500 rounded-full text-white min-w-4 px-1 leading-4">{count}</span>}
+        {count>0&&<span className="flex items-center gap-1" aria-hidden="true">\n         {acceptedCount>0&&<span className="w-2.5 h-2.5 rounded-full bg-blue-500"/>}\n         {confirmedCount>0&&<span className="w-2.5 h-2.5 rounded-full bg-green-500"/>}\n        </span>}
        </button>;
       })}
      </div>

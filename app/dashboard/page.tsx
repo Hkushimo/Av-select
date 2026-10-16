@@ -1,6 +1,7 @@
 import Link from "next/link";
 import {redirect} from "next/navigation";
 import {currentRole} from "@/lib/server";
+import AppIcon from "@/app/app-icon";
 
 type Job={title:string;venue:string;starts_at:string;ends_at:string|null;rate:string;details:string;status:string};
 export default async function TechnicianDashboard(){
@@ -31,12 +32,12 @@ export default async function TechnicianDashboard(){
   {(profileError||offersError)&&<p role="alert" className="text-red-300 text-sm">Some dashboard information could not load. {profileError?.message||offersError?.message}</p>}
   <div className="grid grid-cols-2 gap-3">
    <Link href="/offers" className="panel !p-4 space-y-2 block hover:border-blue-500">
-    <p className="text-blue-300 text-xl" aria-hidden="true">✉</p>
+    <AppIcon name="activity" size={22} className="text-blue-300"/>
     <p className="text-3xl font-bold">{pending.length}</p>
     <p className="muted text-sm">Pending offers</p>
    </Link>
    <Link href="/offers" className="panel !p-4 space-y-2 block hover:border-blue-500">
-    <p className="text-blue-300 text-xl" aria-hidden="true">▦</p>
+    <AppIcon name="calendar" size={22} className="text-blue-300"/>
     <p className="text-3xl font-bold">{accepted.length}</p>
     <p className="muted text-sm">Accepted & booked</p>
    </Link>
@@ -56,7 +57,7 @@ export default async function TechnicianDashboard(){
   </section>
   <Link href="/profile" className="panel flex items-center justify-between gap-3 hover:border-blue-500">
    <div><h2 className="font-semibold">My profile</h2><p className="muted text-sm mt-1">Manage your contact details, positions, and equipment.</p></div>
-   <span className="text-blue-300 text-xl" aria-hidden="true">›</span>
+   <AppIcon name="chevron-right" className="text-blue-300" size={22}/>
   </Link>
  </main>;
 }

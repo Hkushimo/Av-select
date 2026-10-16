@@ -104,33 +104,51 @@ export default function ManageJob({jobId,initialStatus,startsAt,endsAt,technicia
       className={"pill capitalize "+(status===s?"bg-blue-600 border-blue-500":"")}>{s}</button>)}
    </div>
   </section>
-  <section className="panel space-y-3">
-   <h2 className="font-semibold text-lg">Job dates & times</h2>
-   <p className="muted text-xs">Changes update every technician's schedule. Enter dates in your local time.</p>
-   <label><span className="label">Start</span><input type="datetime-local" value={startInput} onChange={e=>setStartInput(e.target.value)}/></label>
-   <label><span className="label">End</span><input type="datetime-local" value={endInput} onChange={e=>setEndInput(e.target.value)}/></label>
-   <button className="primary w-full" type="button" disabled={busy||!startInput} onClick={saveDates}>Save dates</button>
-  </section>
-  <section className="panel space-y-3">
-   <h2 className="font-semibold text-lg">Staffing requirements</h2>
-   <p className="muted text-xs">List roles or skills you're looking for. Admin skill ratings stay separate from technician self-selections.</p>
-   {currentRequirements.length?<div className="space-y-2">
-    {currentRequirements.map(r=><div key={r.skill} className="flex items-center gap-2 border-b border-slate-700 pb-2">
-     <div className="flex-1 text-sm">{r.skill} · min {r.min_level}/5 {r.required?"· required":"· preferred"}</div>
-     <button className="pill text-xs" disabled={busy} onClick={()=>removeRequirement(r.skill)}>Remove</button>
-    </div>)}
-   </div>:<p className="muted text-sm">No requirements yet.</p>}
-   <input aria-label="Role or skill" placeholder="e.g. V1 — Lead Video Engineer" value={skill} onChange={e=>setSkill(e.target.value)}/>
-   <div className="flex items-center gap-3">
-    <label className="text-xs muted flex-1">Min admin rating
-     <select value={level} onChange={e=>setLevel(Number(e.target.value))}>
-      {[1,2,3,4,5].map(n=><option key={n} value={n}>{n}/5</option>)}
-     </select>
-    </label>
-    <label className="text-xs flex gap-2 items-center pt-4"><input className="!w-auto" type="checkbox" checked={required} onChange={e=>setRequired(e.target.checked)}/>Required</label>
+  <section className="panel !p-4 sm:!p-5 space-y-3">
+   <div className="flex items-center justify-between gap-3">
+    <h2 className="font-semibold text-lg">Job schedule</h2>
+    <span className="text-xs muted">Local time</span>
    </div>
-   <button type="button" className="pill w-full" disabled={!skill.trim()||busy} onClick={addRequirement}>Add requirement</button>
+   <div className="grid gap-3 sm:grid-cols-2">
+    <label className="block min-w-0"><span className="label">Start date & time</span>
+     <input type="datetime-local" className="min-w-0" value={startInput} disabled={busy} onChange={e=>setStartInput(e.target.value)}/></label>
+    <label className="block min-w-0"><span className="label">End date & time (optional)</span>
+     <input type="datetime-local" className="min-w-0" value={endInput} disabled={busy} onChange={e=>setEndInput(e.target.value)}/></label>
+   </div>
+   <div className="flex items-center justify-between gap-3 flex-wrap">
+    <p className="muted text-xs flex-1">Changes update the crew's schedules.</p>
+    <button className="primary !px-4 !py-2.5 text-sm" type="button"
+      disabled={busy||!startInput||(startInput===toLocal(startsAt)&&endInput===toLocal(endsAt))} onClick={saveDates}>Save changes</button>
+   </div>
   </section>
+  <details className="panel !p-4 sm:!p-5">
+   <summary className="cursor-pointer font-semibold text-lg flex items-center justify-between gap-3">
+    <span>Staffing requirements <span className="muted text-sm font-normal">({currentRequirements.length})</span></span>
+    <span className="text-blue-300 text-xs font-normal shrink-0">Edit</span>
+   </summary>
+   <div className="space-y-3 pt-4">
+    <p className="muted text-xs">Optional staffing criteria: position, rating, and required/preferred.</p>
+    {currentRequirements.length?<div className="space-y-2">
+     {currentRequirements.map(r=><div key={r.skill} className="flex items-center gap-2 border-b border-slate-700 pb-2">
+      <div className="flex-1 text-sm">{r.skill} · min {r.min_level}/5 {r.required?"· required":"· preferred"}</div>
+      <button type="button" className="text-red-300 text-xs" disabled={busy} onClick={()=>removeRequirement(r.skill)}>Remove</button>
+     </div>)}
+    </div>:<p className="muted text-xs">No requirements yet.</p>}
+    <label className="block"><span className="label">Position or skill</span>
+     <input placeholder="e.g. V1 — Lead Video Engineer" value={skill} onChange={e=>setSkill(e.target.value)}/></label>
+    <div className="flex items-end gap-3">
+     <label className="flex-1 min-w-0"><span className="label">Minimum rating</span>
+      <select value={level} onChange={e=>setLevel(Number(e.target.value))}>
+       {[1,2,3,4,5].map(n=><option key={n} value={n}>{n}/5</option>)}
+      </select>
+     </label>
+     <label className="flex gap-2 items-center pb-3 text-sm whitespace-nowrap">
+      <input className="!w-auto" type="checkbox" checked={required} onChange={e=>setRequired(e.target.checked)}/>Required
+     </label>
+    </div>
+    <button type="button" className="pill w-full" disabled={!skill.trim()||busy} onClick={addRequirement}>Add requirement</button>
+   </div>
+  </details>
   <section className="panel space-y-3">
    <h2 className="font-semibold text-lg">Send job offers</h2>
    <p className="muted text-sm">Select technicians to offer this job. An offer is not a confirmed booking.</p>

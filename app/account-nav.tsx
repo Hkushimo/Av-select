@@ -4,6 +4,7 @@ import Link from "next/link";
 import {usePathname} from "next/navigation";
 import {browserDb} from "@/lib/supabase";
 import JobActivityBadge,{UnreadBubble,useJobActivityCount} from "./job-activity-badge";
+import AppIcon from "./app-icon";
 
 export default function AccountNav(){
  const [email,setEmail]=useState<string|null>(null);
@@ -58,14 +59,13 @@ export default function AccountNav(){
    </Link>
    <div className="hidden sm:flex items-center gap-2">
     {email?<>{isTech&&<><Link className="pill" href="/dashboard">Dashboard</Link><JobActivityBadge role="technician" count={unread}/><Link className="pill" href="/profile">My profile</Link></>}
-     {isAdmin&&<><JobActivityBadge role="admin" count={unread}/>{!pathname.startsWith("/admin")&&<Link className="pill" href="/admin">Dashboard</Link>}</>}
+     {isAdmin&&<><Link className="pill" href="/admin">Dashboard</Link><Link className="pill" href="/admin/jobs">Jobs</Link><JobActivityBadge role="admin" count={unread}/></>}
      <button type="button" className="pill" onClick={logout}>Log out</button></>:
      <Link className="pill" href="/login">Sign in</Link>}
    </div>
    <button type="button" className="sm:hidden relative flex h-10 w-11 shrink-0 items-center justify-center rounded-lg border border-slate-600 text-slate-100 hover:bg-slate-800"
     aria-label={open?"Close menu":"Open menu"} aria-expanded={open} aria-controls="mobile-account-menu" onClick={()=>setOpen(v=>!v)}>
-    {open?<svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M5 5l14 14M19 5L5 19"/></svg>:
-     <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>}
+    <AppIcon name={open?"x":"menu"} size={22}/>
     {(isTech||isAdmin)&&<UnreadBubble count={unread}/>}
    </button>
   </div>
@@ -75,17 +75,21 @@ export default function AccountNav(){
    <div id="mobile-account-menu" className="absolute top-full right-4 z-40 w-[min(18rem,calc(100vw-2rem))] rounded-2xl border border-slate-700 bg-[#172235] p-2 shadow-2xl">
     {email?<div className="flex flex-col gap-1">
      {(isTech||isAdmin)&&<Link href={isAdmin?"/admin":"/dashboard"} onClick={()=>setOpen(false)}
-       className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm hover:bg-slate-700/60"><span className="text-blue-300" aria-hidden="true">⌂</span> Dashboard</Link>}
+       className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm hover:bg-slate-700/60"><AppIcon name="home" className="text-blue-300"/> Dashboard</Link>}
+     {isAdmin&&<Link href="/admin/jobs" onClick={()=>setOpen(false)}
+       className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm hover:bg-slate-700/60">
+       <AppIcon name="jobs" className="text-blue-300"/> Jobs
+      </Link>}
      {(isTech||isAdmin)&&<Link href={activityHref} onClick={()=>setOpen(false)}
        className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm hover:bg-slate-700/60">
-       <span className="text-blue-300" aria-hidden="true">▦</span>
+       <AppIcon name={isAdmin?"activity":"calendar"} className="text-blue-300"/>
        <span className="flex-1">{activityLabel}</span>
        {unread>0&&<span className="rounded-full bg-red-600 px-2 py-0.5 min-w-6 text-center text-xs font-bold text-white">{unread>99?"99+":unread}</span>}
       </Link>}
      {isTech&&<Link href="/profile" onClick={()=>setOpen(false)}
-       className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm hover:bg-slate-700/60"><span className="text-blue-300" aria-hidden="true">◉</span> My profile</Link>}
+       className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm hover:bg-slate-700/60"><AppIcon name="user" className="text-blue-300"/> My profile</Link>}
      <div className="my-1 border-t border-slate-700"/>
-     <button type="button" onClick={logout} className="flex items-center gap-3 rounded-xl px-3 py-3 text-left text-sm text-slate-300 hover:bg-slate-700/60"><span aria-hidden="true">↪</span> Log out</button>
+     <button type="button" onClick={logout} className="flex items-center gap-3 rounded-xl px-3 py-3 text-left text-sm text-slate-300 hover:bg-slate-700/60"><AppIcon name="logout"/> Log out</button>
     </div>:<Link href="/login" onClick={()=>setOpen(false)} className="block rounded-lg px-3 py-3 text-sm hover:bg-slate-700/60">Sign in</Link>}
    </div>
   </div>}
