@@ -25,7 +25,7 @@ export default function Login(){
  }
  return <main className="min-h-[75vh] flex items-center justify-center p-4 sm:p-6">
   <form onSubmit={submit} className="panel w-full max-w-md space-y-5">
-   <div className="inline-flex rounded-xl bg-slate-100 px-3 py-2"><img src="/av-select-logo.png" alt="AV Select" width={240} height={80} className="h-auto w-[210px]" /></div>
+   <div className="inline-flex"><img src="/av-select-logo.png" alt="AV Select" width={240} height={80} className="h-auto w-[210px]" /></div>
    <h1 className="text-3xl font-bold">Welcome back</h1>
    {checking?<p className="muted text-sm">Checking your saved login…</p>:<>
     <p className="muted text-sm">Sign in with your invited account. AV Select keeps you signed in on this device unless you log out or the session is revoked.</p>
