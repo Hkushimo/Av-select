@@ -10,7 +10,7 @@ export default function RatingEditor({technicianId,initialRatings,suggestions}:{
 }){
  const router=useRouter();
  const [ratings,setRatings]=useState<Rating[]>(initialRatings);
- const [skill,setSkill]=useState(""),[level,setLevel]=useState(3);
+ const [skill,setSkill]=useState(""),[customSkill,setCustomSkill]=useState(""),[level,setLevel]=useState(3);
  const [busy,setBusy]=useState(false),[error,setError]=useState(""),[notice,setNotice]=useState("");
  const options=Array.from(new Set(suggestions.map(s=>s.trim()).filter(Boolean))).filter(s=>!ratings.some(r=>r.skill===s));
  async function save(name:string,value:number){
@@ -25,7 +25,7 @@ export default function RatingEditor({technicianId,initialRatings,suggestions}:{
    },{onConflict:"technician_id,skill"});
    if(writeError)throw writeError;
    setRatings(old=>[...old.filter(r=>r.skill!==name),{skill:name,level:value}].sort((a,b)=>a.skill.localeCompare(b.skill)));
-   setNotice("Proficiency rating saved.");setSkill("");router.refresh();
+   setNotice("Proficiency rating saved.");setSkill("");setCustomSkill("");router.refresh();
   }catch(e){setError(e instanceof Error?e.message:"Could not save rating.")}
   finally{setBusy(false)}
  }
@@ -63,18 +63,22 @@ export default function RatingEditor({technicianId,initialRatings,suggestions}:{
   </div>:<p className="muted text-sm">No ratings yet. Add the first skill below.</p>}
   <div className="border-t border-slate-700 pt-4 space-y-3">
    <h3 className="font-semibold">Rate another position or skill</h3>
-   {options.length>0&&<label className="block"><span className="label">Choose from technician's selections</span>
-    <select value="" onChange={e=>setSkill(e.target.value)}>
-     <option value="">Choose a position or equipment…</option>
+   <label className="block"><span className="label">Position or equipment</span>
+    <select value={skill} onChange={e=>{setSkill(e.target.value);setCustomSkill("");setError("")}}>
+     <option value="">Select a skill to rate…</option>
      {options.map(item=><option value={item} key={item}>{item}</option>)}
-    </select></label>}
-   <label className="block"><span className="label">Skill or position name</span>
-    <input value={skill} onChange={e=>setSkill(e.target.value)} placeholder="e.g. V1, E2, Graphics Operator" maxLength={120}/></label>
+     <option value="__other__">Other skill (not listed)</option>
+    </select>
+   </label>
+   {skill==="__other__"&&<label className="block"><span className="label">Other skill name</span>
+    <input value={customSkill} onChange={e=>setCustomSkill(e.target.value)}
+     placeholder="Enter a skill or position" maxLength={120} autoFocus/>
+   </label>}
    <div className="flex items-center justify-between gap-3"><span className="text-sm">Proficiency</span>
     <span className="text-blue-300 text-sm">{level}/5 · {labels[level]}</span></div>
    <input aria-label="New proficiency level" type="range" min={1} max={5} step={1} value={level} onChange={e=>setLevel(Number(e.target.value))} className="w-full !p-0 accent-blue-500"/>
-   <button type="button" className="primary w-full" disabled={busy||!skill.trim()} onClick={()=>{
-    const name=skill.trim();if(ratings.some(r=>r.skill.toLowerCase()===name.toLowerCase())){setError("That skill already has a rating. Edit it above.");return}
+   <button type="button" className="primary w-full" disabled={busy||!skill||(skill==="__other__"&&!customSkill.trim())} onClick={()=>{
+    const name=(skill==="__other__"?customSkill:skill).trim();if(ratings.some(r=>r.skill.toLowerCase()===name.toLowerCase())){setError("That skill already has a rating. Edit it above.");return}
     void save(name,level);
    }}>{busy?"Saving…":"Save proficiency rating"}</button>
   </div>
