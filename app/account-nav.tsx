@@ -51,7 +51,7 @@ export default function AccountNav(){
  const scheduleLabel="My Schedule";
  const activityLabel=isAdmin?"Activity":scheduleLabel;
  const activityHref=isAdmin?"/admin/activity":"/offers";
- return <nav aria-label="Account" className="relative z-30 border-b border-slate-800 bg-[#0e1523]">
+ return <nav aria-label="Account" className="sticky top-0 z-50 border-b border-slate-800 bg-[#0e1523]">
   <div className="mx-auto max-w-6xl px-4 py-3 flex items-center justify-between gap-3 text-sm">
    <Link href="/" className="inline-flex shrink-0 items-center" aria-label="AV Select home" onClick={()=>setOpen(false)}>
     <img src="/av-select-logo.png" alt="AV Select" width={150} height={50} className="h-9 w-auto max-w-[140px] object-contain"/>
