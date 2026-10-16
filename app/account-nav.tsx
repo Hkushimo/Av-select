@@ -14,6 +14,12 @@ export default function AccountNav(){
  const unread=useJobActivityCount(userId,role);
  useEffect(()=>{setOpen(false)},[pathname]);
  useEffect(()=>{
+  if(!open)return;
+  const onKey=(event:KeyboardEvent)=>{if(event.key==="Escape")setOpen(false)};
+  document.addEventListener("keydown",onKey);
+  return()=>document.removeEventListener("keydown",onKey);
+ },[open]);
+ useEffect(()=>{
   let active=true;
   const db=browserDb();
   async function loadRole(id:string){
@@ -24,8 +30,7 @@ export default function AccountNav(){
    const {data:{user}}=await db.auth.getUser();
    if(!active)return;
    setEmail(user?.email||null);setUserId(user?.id||null);
-   if(user)await loadRole(user.id);
-   else setRole(null);
+   if(user)await loadRole(user.id);else setRole(null);
   }
   void restore();
   const {data:{subscription}}=db.auth.onAuthStateChange((_event,session)=>{
@@ -43,13 +48,16 @@ export default function AccountNav(){
  }
  const isTech=role==="technician"&&!!userId;
  const isAdmin=role==="admin"&&!!userId;
- return <nav aria-label="Account" className="border-b border-slate-800 bg-[#0e1523]">
+ const scheduleLabel="My Schedule";
+ const activityLabel=isAdmin?"Activity":scheduleLabel;
+ const activityHref=isAdmin?"/admin/activity":"/offers";
+ return <nav aria-label="Account" className="relative z-30 border-b border-slate-800 bg-[#0e1523]">
   <div className="mx-auto max-w-6xl px-4 py-3 flex items-center justify-between gap-3 text-sm">
    <Link href="/" className="inline-flex shrink-0 items-center" aria-label="AV Select home" onClick={()=>setOpen(false)}>
     <img src="/av-select-logo.png" alt="AV Select" width={150} height={50} className="h-9 w-auto max-w-[140px] object-contain"/>
    </Link>
    <div className="hidden sm:flex items-center gap-2">
-    {email?<>{isTech&&<><JobActivityBadge role="technician" count={unread}/><Link className="pill" href="/profile">My profile</Link></>}
+    {email?<>{isTech&&<><Link className="pill" href="/dashboard">Dashboard</Link><JobActivityBadge role="technician" count={unread}/><Link className="pill" href="/profile">My profile</Link></>}
      {isAdmin&&<><JobActivityBadge role="admin" count={unread}/>{!pathname.startsWith("/admin")&&<Link className="pill" href="/admin">Dashboard</Link>}</>}
      <button type="button" className="pill" onClick={logout}>Log out</button></>:
      <Link className="pill" href="/login">Sign in</Link>}
@@ -61,12 +69,24 @@ export default function AccountNav(){
     {(isTech||isAdmin)&&<UnreadBubble count={unread}/>}
    </button>
   </div>
-  {open&&<div id="mobile-account-menu" className="sm:hidden border-t border-slate-800 px-4 py-3">
-   <div className="mx-auto max-w-6xl flex flex-col items-stretch gap-3">
-    {email?<>{isTech&&<><JobActivityBadge role="technician" count={unread} onNavigate={()=>setOpen(false)}/><Link href="/profile" className="pill text-center" onClick={()=>setOpen(false)}>My profile</Link></>}
-     {isAdmin&&<><Link href="/admin" className="pill text-center" onClick={()=>setOpen(false)}>Dashboard</Link><JobActivityBadge role="admin" count={unread} onNavigate={()=>setOpen(false)}/></>}
-     <button type="button" className="pill" onClick={logout}>Log out</button></>:
-     <Link href="/login" className="pill text-center" onClick={()=>setOpen(false)}>Sign in</Link>}
+  {open&&<div className="sm:hidden">
+   <button type="button" aria-label="Close navigation menu" onClick={()=>setOpen(false)}
+     className="fixed inset-0 z-[-1] bg-black/30 cursor-default"/>
+   <div id="mobile-account-menu" className="absolute top-full right-4 z-40 w-[min(18rem,calc(100vw-2rem))] rounded-2xl border border-slate-700 bg-[#172235] p-2 shadow-2xl">
+    {email?<div className="flex flex-col gap-1">
+     {(isTech||isAdmin)&&<Link href={isAdmin?"/admin":"/dashboard"} onClick={()=>setOpen(false)}
+       className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm hover:bg-slate-700/60"><span className="text-blue-300" aria-hidden="true">⌂</span> Dashboard</Link>}
+     {(isTech||isAdmin)&&<Link href={activityHref} onClick={()=>setOpen(false)}
+       className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm hover:bg-slate-700/60">
+       <span className="text-blue-300" aria-hidden="true">▦</span>
+       <span className="flex-1">{activityLabel}</span>
+       {unread>0&&<span className="rounded-full bg-red-600 px-2 py-0.5 min-w-6 text-center text-xs font-bold text-white">{unread>99?"99+":unread}</span>}
+      </Link>}
+     {isTech&&<Link href="/profile" onClick={()=>setOpen(false)}
+       className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm hover:bg-slate-700/60"><span className="text-blue-300" aria-hidden="true">◉</span> My profile</Link>}
+     <div className="my-1 border-t border-slate-700"/>
+     <button type="button" onClick={logout} className="flex items-center gap-3 rounded-xl px-3 py-3 text-left text-sm text-slate-300 hover:bg-slate-700/60"><span aria-hidden="true">↪</span> Log out</button>
+    </div>:<Link href="/login" onClick={()=>setOpen(false)} className="block rounded-lg px-3 py-3 text-sm hover:bg-slate-700/60">Sign in</Link>}
    </div>
   </div>}
  </nav>;
