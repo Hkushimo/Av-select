@@ -2,8 +2,7 @@
 import {FormEvent,useState} from "react";
 import {useRouter} from "next/navigation";
 import {browserDb} from "@/lib/supabase";
-import RoleFlowEditor from "./role-flow-editor";
-import type {RoleFlow} from "./role-flow-types";
+import DepartmentFlowEditor,{type DepartmentFlow} from "./department-flow";
 
 function localIso(value:string){
  const d=new Date(value);
@@ -14,7 +13,7 @@ export default function JobCreate(){
  const router=useRouter();
  const [expanded,setExpanded]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState("");
  const [title,setTitle]=useState(""),[venue,setVenue]=useState(""),[address,setAddress]=useState(""),[starts,setStarts]=useState(""),[ends,setEnds]=useState("");
- const [roleFlows,setRoleFlows]=useState<RoleFlow[]>([]);
+ const [flows,setFlows]=useState<DepartmentFlow[]>([]);
  const [rate,setRate]=useState(""),[details,setDetails]=useState(""),[status,setStatus]=useState<"draft"|"open">("draft");
  async function submit(event:FormEvent){
   event.preventDefault();setError("");setBusy(true);
@@ -28,7 +27,7 @@ export default function JobCreate(){
    const {data:profile}=await db.from("profiles").select("role").eq("id",user.id).maybeSingle();
    if(profile?.role!=="admin")throw new Error("Only administrators can create jobs.");
    const {data:created,error:insertError}=await db.from("jobs").insert({
-    title:title.trim(),venue:venue.trim(),address:address.trim(),role_flows:roleFlows,starts_at:from,ends_at:to,
+    title:title.trim(),venue:venue.trim(),address:address.trim(),signal_flow:flows,starts_at:from,ends_at:to,
     rate:rate.trim(),details:details.trim(),status,created_by:user.id
    }).select("id").single();
    if(insertError)throw insertError;
@@ -52,7 +51,7 @@ export default function JobCreate(){
    <p className="muted text-xs">Times are entered in your device's local time zone.</p>
    <label className="block"><span className="label">Rate / pay details</span><input maxLength={160} placeholder="e.g. $600/day, 10-hour minimum" value={rate} onChange={e=>setRate(e.target.value)}/></label>
    <label className="block"><span className="label">Call details / notes</span><textarea rows={4} maxLength={5000} placeholder="Load-in, parking, dress code, gear and contact notes" value={details} onChange={e=>setDetails(e.target.value)}/></label>
-   <details className="rounded-xl border border-slate-700 px-3 py-3"><summary className="cursor-pointer text-sm font-semibold">Role-specific signal flows (optional)</summary><div className="pt-3"><RoleFlowEditor value={roleFlows} onChange={setRoleFlows} disabled={busy}/></div></details>
+   <details className="rounded-xl border border-slate-700 px-3 py-3"><summary className="cursor-pointer text-sm font-semibold">Department signal flows (optional)</summary><div className="pt-3"><DepartmentFlowEditor value={flows} onChange={setFlows} disabled={busy}/></div></details>
    <label className="block"><span className="label">Initial status</span><select value={status} onChange={e=>setStatus(e.target.value as "draft"|"open")}>
     <option value="draft">Draft — plan staffing</option><option value="open">Open — ready to offer</option>
    </select></label>

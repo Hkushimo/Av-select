@@ -2,19 +2,17 @@
 import {useMemo,useState} from "react";
 import MarkActivitySeen from "@/app/mark-activity-seen";
 import {OfferActions} from "./responses";
-import {SignalFlowView,type FlowConnection} from "@/app/admin/jobs/signal-flow";
 import AppIcon from "@/app/app-icon";
-import {matchingFlow,type RoleFlow} from "@/app/admin/jobs/role-flow-types";
+import {FlowTabs,type DepartmentFlow} from "@/app/admin/jobs/department-flow";
 
-type Job={title:string;venue:string;address?:string;role_flows?:RoleFlow[];starts_at:string;ends_at:string|null;rate:string;details:string;status:string};
-export type ScheduleOffer={id:string;status:string;assigned_role:string;job:Job|null};
+type Job={title:string;venue:string;address?:string;signal_flow?:DepartmentFlow[];starts_at:string;ends_at:string|null;rate:string;details:string;status:string};
+export type ScheduleOffer={id:string;status:string;job:Job|null};
 const dayKey=(date:Date)=>[date.getFullYear(),String(date.getMonth()+1).padStart(2,"0"),String(date.getDate()).padStart(2,"0")].join("-");
 const dateLabel=(iso:string)=>new Date(iso).toLocaleString("en-US",{dateStyle:"medium",timeStyle:"short"});
 const timeLabel=(iso:string)=>new Date(iso).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"});
 
 function OfferCard({offer}:{offer:ScheduleOffer}){
  const job=offer.job;
- const connections=matchingFlow(job?.role_flows||[],offer.assigned_role||"General");
  const booked=offer.status==="confirmed";
  const accepted=offer.status==="accepted";
  const statusText=booked?"Booked":accepted?"Accepted":"Pending offer";
@@ -23,7 +21,6 @@ function OfferCard({offer}:{offer:ScheduleOffer}){
    <div className="min-w-0">
     <h3 className="text-lg sm:text-xl font-bold leading-snug break-words">{job?.title||"Job"}</h3>
     <p className="muted text-sm mt-1">{job?.venue||"Venue TBD"}</p>
-    <p className="text-blue-300 text-xs mt-1">Your role: {offer.assigned_role||"General"}</p>
    </div>
    <span className={"shrink-0 rounded-full border px-3 py-1 text-xs font-semibold "+(booked?"border-green-600/50 bg-green-500/10 text-green-300":accepted?"border-blue-500/50 bg-blue-500/10 text-blue-300":"border-amber-500/50 bg-amber-500/10 text-amber-200")}>{statusText}</span>
   </div>
@@ -44,7 +41,7 @@ function OfferCard({offer}:{offer:ScheduleOffer}){
     <span className="min-w-0 text-sm break-words underline underline-offset-2">{job.address} <span aria-hidden="true">↗</span></span>
    </a>}
   </div>
-  {(!!job?.details||!!connections.length)&&<details className="group rounded-xl border border-slate-700/70">
+  {(!!job?.details||!!job?.signal_flow?.length)&&<details className="group rounded-xl border border-slate-700/70">
    <summary className="cursor-pointer flex items-center justify-between gap-2 px-3 py-3 text-sm font-semibold list-none [&::-webkit-details-marker]:hidden">
     <span>Production notes & equipment</span>
     <span className="text-blue-300 text-xs group-open:hidden">View details ↓</span>
@@ -52,7 +49,7 @@ function OfferCard({offer}:{offer:ScheduleOffer}){
    </summary>
    <div className="space-y-4 border-t border-slate-700 px-3 py-3">
     {job?.details&&<div className="space-y-1"><p className="label">Call details</p><p className="text-sm whitespace-pre-wrap break-words">{job.details}</p></div>}
-    {!!connections.length&&<div className="space-y-2"><p className="label">Your equipment & signal flow</p><SignalFlowView connections={connections}/></div>}
+    {!!connections.length&&<div className="space-y-2"><p className="label">Your equipment & signal flow</p><FlowTabs connections={job.signal_flow||[]}/></div>}
    </div>
   </details>}
   {offer.status==="pending"&&<OfferActions id={offer.id}/>}
@@ -145,9 +142,8 @@ export default function ScheduleTabs({offers,userId}:{offers:ScheduleOffer[];use
       chosen.map(o=><article key={o.id} className="panel space-y-2">
        <div className="flex items-center justify-between gap-2"><h3 className="font-semibold">{o.job?.title||"Job"}</h3><span className={o.status==="confirmed"?"text-green-300 text-xs shrink-0":"text-blue-300 text-xs shrink-0"}>{o.status==="confirmed"?"Booked":"Accepted"}</span></div>
        <p className="text-sm muted">{o.job?.venue||"Venue TBD"}</p>
-       <p className="text-xs text-blue-300">Role: {o.assigned_role||"General"}</p>
        {o.job?.address&&<a href={"https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(o.job.address)} target="_blank" rel="noopener noreferrer" className="text-blue-300 text-xs underline break-words">{o.job.address} ↗ Map</a>}
-       {matchingFlow(o.job?.role_flows||[],o.assigned_role||"General").length>0&&<details className="rounded-lg border border-slate-700 p-3"><summary className="cursor-pointer text-sm">Your equipment & signal flow</summary><div className="mt-3"><SignalFlowView connections={matchingFlow(o.job?.role_flows||[],o.assigned_role||"General")}/></div></details>}
+       {(o.job?.signal_flow?.length||0)>0&&<details className="rounded-lg border border-slate-700 p-3"><summary className="cursor-pointer text-sm">Your equipment & signal flow</summary><div className="mt-3"><FlowTabs connections={o.job?.signal_flow||[]}/></div></details>}
        {o.job?.starts_at&&<p className="text-sm">{dateLabel(o.job.starts_at)}{o.job.ends_at?` – ${timeLabel(o.job.ends_at)}`:""}</p>}
        {o.job?.rate&&<p className="text-sm">{o.job.rate}</p>}
        {o.job?.details&&<p className="text-sm whitespace-pre-wrap break-words">{o.job.details}</p>}

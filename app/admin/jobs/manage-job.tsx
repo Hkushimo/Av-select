@@ -8,8 +8,8 @@ type JobStatus="draft"|"open"|"closed";
 type Tech=RosterTech;
 type Offer={id:string;technician_id:string;status:string};
 type Requirement={skill:string;min_level:number;required:boolean};
-export default function ManageJob({jobId,initialStatus,startsAt,endsAt,technicians,ratings,offers,requirements,mode,roleNames}:{
- jobId:string;initialStatus:JobStatus;startsAt:string;endsAt:string|null;technicians:Tech[];ratings:RosterRating[];offers:Offer[];requirements:Requirement[];mode:"setup"|"staffing";roleNames:string[];
+export default function ManageJob({jobId,initialStatus,startsAt,endsAt,technicians,ratings,offers,requirements,mode}:{
+ jobId:string;initialStatus:JobStatus;startsAt:string;endsAt:string|null;technicians:Tech[];ratings:RosterRating[];offers:Offer[];requirements:Requirement[];mode:"setup"|"staffing";
 }){
  const router=useRouter();
  const [status,setStatus]=useState<JobStatus>(initialStatus),[busy,setBusy]=useState(false);
@@ -81,7 +81,7 @@ export default function ManageJob({jobId,initialStatus,startsAt,endsAt,technicia
   setBusy(true);setError("");setNotice("");
   const {data,error}=await browserDb().from("job_offers").insert(
    selected.map(id=>({job_id:jobId,technician_id:id,status:"pending"}))
-  ).select("id,technician_id,status,assigned_role");
+  ).select("id,technician_id,status");
   if(error)setError(error.message);
   else{setExistingOffers(items=>[...items,...(data||[])]);setSelected([]);setNotice("Offers saved. Technicians can view them under Job offers.");router.refresh()}
   setBusy(false);
