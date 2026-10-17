@@ -1,5 +1,6 @@
 "use client";
 import PageHeading from "@/app/page-heading";
+import Breadcrumbs from "@/app/admin/breadcrumbs";
 import {ChangeEvent,useEffect,useState} from "react";
 import ProfileSelections from "./profile-selections";
 import {browserDb} from "@/lib/supabase";
@@ -64,6 +65,7 @@ export default function TechnicianProfile(){
   finally{setBusy(false)}
  }
  return <main className="mx-auto max-w-2xl px-4 py-6 space-y-5">
+  <Breadcrumbs items={[{label:"Dashboard",href:"/dashboard"},{label:"My Profile"}]}/>
   <PageHeading eyebrow="Technician account" title="My profile"/>
   {!profile?<div className="panel muted">{error||"Loading profile…"}</div>:<>
    <section className="panel space-y-4"><h2 className="text-lg font-semibold">Profile photo <span className="muted text-sm font-normal">(optional)</span></h2>
