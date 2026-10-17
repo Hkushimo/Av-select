@@ -6,14 +6,14 @@ import {rosterMatch, type RosterTech, type RosterRating} from "../roster-filters
 
 type JobStatus="draft"|"open"|"closed";
 type Tech=RosterTech;
-type Offer={id:string;technician_id:string;status:string};
+type Offer={id:string;technician_id:string;status:string;offer_position:string;offer_rate:string};
 type Requirement={skill:string;min_level:number;required:boolean};
 export default function ManageJob({jobId,initialStatus,startsAt,endsAt,technicians,ratings,offers,requirements,mode}:{
  jobId:string;initialStatus:JobStatus;startsAt:string;endsAt:string|null;technicians:Tech[];ratings:RosterRating[];offers:Offer[];requirements:Requirement[];mode:"setup"|"staffing";
 }){
  const router=useRouter();
  const [status,setStatus]=useState<JobStatus>(initialStatus),[busy,setBusy]=useState(false);
- const [selected,setSelected]=useState<string[]>([]),[error,setError]=useState(""),[notice,setNotice]=useState("");
+ const [selected,setSelected]=useState<string[]>([]),[offerDetails,setOfferDetails]=useState<Record<string,{position:string;rate:string}>>({}),[error,setError]=useState(""),[notice,setNotice]=useState("");
  const [skill,setSkill]=useState(""),[level,setLevel]=useState(3),[required,setRequired]=useState(true);
  const [existingOffers,setExistingOffers]=useState(offers);
  const toLocal=(iso:string|null)=>{if(!iso)return "";const d=new Date(iso);return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,16)};
@@ -78,12 +78,12 @@ export default function ManageJob({jobId,initialStatus,startsAt,endsAt,technicia
  }
  async function sendOffers(){
   if(!selected.length||status!=="open")return;
+  const payload=selected.map(id=>({job_id:jobId,technician_id:id,status:"pending",offer_position:(offerDetails[id]?.position||"").trim(),offer_rate:(offerDetails[id]?.rate||"").trim()}));
+  if(payload.some(o=>!o.offer_position||!o.offer_rate)){setError("Choose a position and enter a rate for every selected technician.");return}
   setBusy(true);setError("");setNotice("");
-  const {data,error}=await browserDb().from("job_offers").insert(
-   selected.map(id=>({job_id:jobId,technician_id:id,status:"pending"}))
-  ).select("id,technician_id,status");
+  const {data,error}=await browserDb().from("job_offers").insert(payload).select("id,technician_id,status,offer_position,offer_rate");
   if(error)setError(error.message);
-  else{setExistingOffers(items=>[...items,...(data||[])]);setSelected([]);setNotice("Offers saved. Technicians can view them under Job offers.");router.refresh()}
+  else{setExistingOffers(items=>[...items,...(data||[])]);setSelected([]);setOfferDetails({});setNotice("Offers saved with individual positions and rates.");router.refresh()}
   setBusy(false);
  }
  async function cancelOffer(offer:Offer){
@@ -158,6 +158,7 @@ export default function ManageJob({jobId,initialStatus,startsAt,endsAt,technicia
    {existingOffers.map(o=><div key={o.id} className="py-3 border-b border-slate-700 space-y-2">
     <p className="font-semibold text-sm">{technicians.find(t=>t.user_id===o.technician_id)?.full_name||"Technician"}</p>
     <p className={o.status==="confirmed"?"text-green-300 text-xs":"muted text-xs"}>{o.status==="confirmed"?"Booked":o.status==="accepted"?"Accepted · Awaiting confirmation":o.status}</p>
+    {(o.offer_position||o.offer_rate)&&<p className="text-sm text-slate-200">{[o.offer_position,o.offer_rate].filter(Boolean).join(" · ")}</p>}
     <div className="flex flex-wrap gap-2">
      {o.status==="accepted"&&<button className="primary text-xs" disabled={busy} onClick={()=>updateBooking(o,"confirmed")}>Confirm booking</button>}
      {o.status==="confirmed"&&<button className="pill text-xs" disabled={busy} onClick={()=>updateBooking(o,"accepted")}>Undo confirmation</button>}
@@ -173,7 +174,7 @@ export default function ManageJob({jobId,initialStatus,startsAt,endsAt,technicia
     <span className="text-blue-300 text-sm hidden group-open:inline">Close</span>
    </summary>
    <div className="space-y-3 pt-4">
-   <p className="muted text-xs">Select technicians to invite. Offers are not confirmed bookings.</p>
+   <p className="muted text-xs">Select technicians, then set each person’s position and pay. Offers are not confirmed bookings.</p>
    {status!=="open"&&<p className="text-amber-200 text-sm">Set job status to Open to send offers.</p>}
    <div className="space-y-2 border border-slate-700 rounded-xl p-3">
     <input type="search" aria-label="Search candidates" placeholder="Search names, city, specialties…" value={search} onChange={e=>setSearch(e.target.value)}/>
@@ -188,11 +189,19 @@ export default function ManageJob({jobId,initialStatus,startsAt,endsAt,technicia
    </div>
    {!available.length?<p className="muted text-sm">No additional technicians available to offer.</p>:
     !filteredAvailable.length?<p className="muted text-sm">No technicians match. Adjust or clear filters.</p>:
-    <div className="space-y-2 max-h-72 overflow-auto">{filteredAvailable.map(t=><label key={t.user_id} className="flex gap-3 items-center rounded-lg border border-slate-700 px-3 py-3">
-     <input className="!w-auto" type="checkbox" checked={selected.includes(t.user_id)} onChange={()=>toggle(t.user_id)} />
-     <span className="min-w-0"><span className="font-medium text-sm block">{t.full_name||"Incomplete profile"}</span>
-      <span className="muted text-xs block break-words">{[t.city,t.roles?.slice(0,2).join(", ")].filter(Boolean).join(" · ")}{ratingFilter&&<span className="text-blue-300"> · {ratingFilter} {ratings.find(r=>r.technician_id===t.user_id&&r.skill===ratingFilter)?.level}/5</span>}</span></span>
-    </label>)}</div>}
+    <div className="space-y-2 max-h-72 overflow-auto">{filteredAvailable.map(t=><div key={t.user_id} className={"rounded-lg border px-3 py-3 space-y-3 "+(selected.includes(t.user_id)?"border-blue-500/60 bg-blue-500/5":"border-slate-700")}>
+     <label className="flex items-center gap-3 cursor-pointer">
+      <input className="!w-auto" type="checkbox" checked={selected.includes(t.user_id)} onChange={()=>toggle(t.user_id)} />
+      <span className="min-w-0"><span className="font-medium text-sm block">{t.full_name||"Incomplete profile"}</span>
+       <span className="muted text-xs block break-words">{[t.city,t.roles?.slice(0,2).join(", ")].filter(Boolean).join(" · ")}{ratingFilter&&<span className="text-blue-300"> · {ratingFilter} {ratings.find(r=>r.technician_id===t.user_id&&r.skill===ratingFilter)?.level}/5</span>}</span></span>
+     </label>
+     {selected.includes(t.user_id)&&<div className="grid grid-cols-1 sm:grid-cols-2 gap-2 border-t border-slate-700 pt-3">
+      <label className="block"><span className="label">Offered position *</span><select value={offerDetails[t.user_id]?.position||""} onChange={e=>setOfferDetails(prev=>({...prev,[t.user_id]:{position:e.target.value,rate:prev[t.user_id]?.rate||""}}))}>
+       <option value="">Choose a position</option>{(t.roles||[]).map(role=><option key={role} value={role}>{role}</option>)}<option value="Other / special assignment">Other / special assignment</option>
+      </select></label>
+      <label className="block"><span className="label">Offered rate *</span><input maxLength={160} placeholder="e.g. $50/hr or $600/day" value={offerDetails[t.user_id]?.rate||""} onChange={e=>setOfferDetails(prev=>({...prev,[t.user_id]:{position:prev[t.user_id]?.position||"",rate:e.target.value}}))}/></label>
+     </div>}
+    </div>)}</div>}
    <button type="button" className="primary w-full" disabled={busy||status!=="open"||!selected.length} onClick={sendOffers}>
     {busy?"Saving…":`Offer job to ${selected.length} technician${selected.length===1?"":"s"}`}
    </button>

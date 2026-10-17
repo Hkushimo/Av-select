@@ -6,50 +6,59 @@ import AppIcon from "@/app/app-icon";
 import {FlowTabs,type DepartmentFlow} from "@/app/admin/jobs/department-flow";
 
 type Job={title:string;venue:string;address?:string;signal_flow?:DepartmentFlow[];starts_at:string;ends_at:string|null;rate:string;details:string;status:string};
-export type ScheduleOffer={id:string;status:string;job:Job|null};
+export type ScheduleOffer={id:string;status:string;offer_position:string;offer_rate:string;job:Job|null};
 const dayKey=(date:Date)=>[date.getFullYear(),String(date.getMonth()+1).padStart(2,"0"),String(date.getDate()).padStart(2,"0")].join("-");
 const dateLabel=(iso:string)=>new Date(iso).toLocaleString("en-US",{dateStyle:"medium",timeStyle:"short"});
 const timeLabel=(iso:string)=>new Date(iso).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"});
 
 function OfferCard({offer}:{offer:ScheduleOffer}){
  const job=offer.job;
- const booked=offer.status==="confirmed";
- const accepted=offer.status==="accepted";
- const statusText=booked?"Booked":accepted?"Accepted":"Pending offer";
+ const booked=offer.status==="confirmed",accepted=offer.status==="accepted";
+ const statusText=booked?"Booked":accepted?"Accepted":"Pending";
+ const start=job?.starts_at?new Date(job.starts_at):null;
+ const end=job?.ends_at?new Date(job.ends_at):null;
+ const date=(d:Date)=>d.toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"});
+ const time=(d:Date)=>d.toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"});
+ const pay=offer.offer_rate||job?.rate||"";
  return <article className="panel !p-4 sm:!p-5 space-y-4">
   <div className="flex items-start justify-between gap-3">
    <div className="min-w-0">
-    <h3 className="text-lg sm:text-xl font-bold leading-snug break-words">{job?.title||"Job"}</h3>
+    <h3 className="text-xl font-bold leading-snug break-words">{job?.title||"Job"}</h3>
     <p className="muted text-sm mt-1">{job?.venue||"Venue TBD"}</p>
    </div>
-   <span className={"shrink-0 rounded-full border px-3 py-1 text-xs font-semibold "+(booked?"border-green-600/50 bg-green-500/10 text-green-300":accepted?"border-blue-500/50 bg-blue-500/10 text-blue-300":"border-amber-500/50 bg-amber-500/10 text-amber-200")}>{statusText}</span>
+   <span className={"shrink-0 rounded-full border px-2.5 py-1 text-xs font-semibold "+(booked?"border-green-600/50 bg-green-500/10 text-green-300":accepted?"border-blue-500/50 bg-blue-500/10 text-blue-300":"border-amber-500/50 bg-amber-500/10 text-amber-200")}>{statusText}</span>
   </div>
   <div className="rounded-xl border border-slate-700/70 bg-slate-900/40 divide-y divide-slate-700/70">
-   {job?.starts_at&&<div className="flex items-start gap-3 px-3 py-3">
+   {offer.offer_position&&<div className="flex items-start gap-3 px-3 py-3">
+    <AppIcon name="jobs" size={18} className="text-blue-300 shrink-0 mt-0.5"/>
+    <div className="min-w-0"><p className="muted text-xs">Offered position</p><p className="text-sm font-semibold break-words">{offer.offer_position}</p></div>
+   </div>}
+   {start&&<div className="flex items-start gap-3 px-3 py-3">
     <AppIcon name="calendar" size={18} className="text-blue-300 shrink-0 mt-0.5"/>
     <div className="min-w-0 text-sm">
-     <p className="font-semibold">{new Date(job.starts_at).toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric",year:"numeric"})}</p>
-     <p className="muted mt-0.5">{new Date(job.starts_at).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"})}{job.ends_at?" – "+(new Date(job.ends_at).toDateString()===new Date(job.starts_at).toDateString()?timeLabel(job.ends_at):dateLabel(job.ends_at)):""}</p>
+     <p className="font-semibold">{date(start)}{end&&start.toDateString()!==end.toDateString()?" – "+date(end):""}</p>
+     <p className="muted mt-0.5">{time(start)}{end?" – "+(start.toDateString()===end.toDateString()?time(end):date(end)+", "+time(end)):""}</p>
     </div>
    </div>}
-   {job?.rate&&<div className="flex items-center gap-3 px-3 py-2.5">
-    <span className="text-green-300 text-sm font-semibold w-[18px] text-center" aria-hidden="true">$</span>
-    <span className="text-sm"><span className="muted">Rate </span><span className="font-medium">{job.rate}</span></span>
+   {pay&&<div className="flex items-center justify-between gap-3 px-3 py-3">
+    <div className="flex items-center gap-3"><AppIcon name="wallet" size={18} className="text-green-300 shrink-0"/><span className="muted text-sm">{offer.offer_rate?"Your rate":"Job rate"}</span></div>
+    <span className="text-green-300 font-bold text-base text-right break-words">{pay}</span>
    </div>}
-   {job?.address&&<a href={"https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(job.address)} target="_blank" rel="noopener noreferrer" className="flex items-start gap-3 px-3 py-2.5 text-blue-300 hover:bg-slate-800/40">
-    <AppIcon name="map-pin" size={18} className="shrink-0 mt-0.5"/>
-    <span className="min-w-0 text-sm break-words underline underline-offset-2">{job.address} <span aria-hidden="true">↗</span></span>
+   {job?.address&&<a href={"https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(job.address)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 px-3 py-3 text-blue-300 hover:bg-slate-800/40">
+    <AppIcon name="map-pin" size={18} className="shrink-0"/>
+    <span className="min-w-0 text-sm break-words underline underline-offset-2">View location <span aria-hidden="true">↗</span></span>
    </a>}
   </div>
   {(!!job?.details||!!job?.signal_flow?.length)&&<details className="group rounded-xl border border-slate-700/70">
    <summary className="cursor-pointer flex items-center justify-between gap-2 px-3 py-3 text-sm font-semibold list-none [&::-webkit-details-marker]:hidden">
-    <span>Production notes & equipment</span>
-    <span className="text-blue-300 text-xs group-open:hidden">View details ↓</span>
+    <span>Production details</span>
+    <span className="text-blue-300 text-xs group-open:hidden">View ↓</span>
     <span className="text-blue-300 text-xs hidden group-open:inline">Hide ↑</span>
    </summary>
    <div className="space-y-4 border-t border-slate-700 px-3 py-3">
+    {job?.address&&<div><p className="label">Address</p><p className="text-sm break-words">{job.address}</p></div>}
     {job?.details&&<div className="space-y-1"><p className="label">Call details</p><p className="text-sm whitespace-pre-wrap break-words">{job.details}</p></div>}
-    {!!job?.signal_flow?.length&&<div className="space-y-2"><p className="label">Your equipment & signal flow</p><FlowTabs connections={job.signal_flow||[]}/></div>}
+    {!!job?.signal_flow?.length&&<div className="space-y-2"><p className="label">Equipment & signal flow</p><FlowTabs connections={job.signal_flow||[]}/></div>}
    </div>
   </details>}
   {offer.status==="pending"&&<OfferActions id={offer.id}/>}
@@ -145,7 +154,8 @@ export default function ScheduleTabs({offers,userId}:{offers:ScheduleOffer[];use
        {o.job?.address&&<a href={"https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(o.job.address)} target="_blank" rel="noopener noreferrer" className="text-blue-300 text-xs underline break-words">{o.job.address} ↗ Map</a>}
        {(o.job?.signal_flow?.length||0)>0&&<details className="rounded-lg border border-slate-700 p-3"><summary className="cursor-pointer text-sm">Your equipment & signal flow</summary><div className="mt-3"><FlowTabs connections={o.job?.signal_flow||[]}/></div></details>}
        {o.job?.starts_at&&<p className="text-sm">{dateLabel(o.job.starts_at)}{o.job.ends_at?` – ${timeLabel(o.job.ends_at)}`:""}</p>}
-       {o.job?.rate&&<p className="text-sm">{o.job.rate}</p>}
+       {o.offer_position&&<p className="text-sm font-semibold">{o.offer_position}</p>}
+       {(o.offer_rate||o.job?.rate)&&<p className="text-sm inline-flex items-center gap-2"><AppIcon name="wallet" size={16} className="text-green-300"/><span>{o.offer_rate||o.job?.rate}</span></p>}
        {o.job?.details&&<p className="text-sm whitespace-pre-wrap break-words">{o.job.details}</p>}
        <p className={o.status==="confirmed"?"text-xs text-green-300":"text-xs text-blue-300"}>{o.status==="confirmed"?"Booking confirmed":"Awaiting staffing confirmation"}</p>
       </article>)}

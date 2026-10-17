@@ -9,10 +9,10 @@ export default async function MySchedule(){
  if(!user)redirect("/login");
  if(role!=="technician")redirect("/");
  const {data:offers,error}=await db.from("job_offers")
-  .select("id,status,jobs(title,venue,address,signal_flow,starts_at,ends_at,rate,details,status)")
+  .select("id,status,offer_position,offer_rate,jobs(title,venue,address,signal_flow,starts_at,ends_at,rate,details,status)")
   .eq("technician_id",user.id).in("status",["pending","accepted","confirmed"]).order("created_at",{ascending:false});
  const entries:ScheduleOffer[]=(offers||[]).map(o=>({
-  id:o.id,status:o.status,
+  id:o.id,status:o.status,offer_position:o.offer_position||"",offer_rate:o.offer_rate||"",
   job:o.jobs as unknown as ScheduleOffer["job"]
  }));
  return <main className="mx-auto max-w-3xl px-4 py-6 space-y-5">

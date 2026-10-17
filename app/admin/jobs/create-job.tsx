@@ -49,7 +49,7 @@ export default function JobCreate(){
     <label className="block"><span className="label">End date & time</span><input type="datetime-local" value={ends} onChange={e=>setEnds(e.target.value)}/></label>
    </div>
    <p className="muted text-xs">Times are entered in your device's local time zone.</p>
-   <label className="block"><span className="label">Rate / pay details</span><input maxLength={160} placeholder="e.g. $600/day, 10-hour minimum" value={rate} onChange={e=>setRate(e.target.value)}/></label>
+   <label className="block"><span className="label">General pay notes (optional)</span><input maxLength={160} placeholder="e.g. 10-hour minimum; individual rates set with offers" value={rate} onChange={e=>setRate(e.target.value)}/></label>
    <label className="block"><span className="label">Call details / notes</span><textarea rows={4} maxLength={5000} placeholder="Load-in, parking, dress code, gear and contact notes" value={details} onChange={e=>setDetails(e.target.value)}/></label>
    <details className="rounded-xl border border-slate-700 px-3 py-3"><summary className="cursor-pointer text-sm font-semibold">Department signal flows (optional)</summary><div className="pt-3"><DepartmentFlowEditor value={flows} onChange={setFlows} disabled={busy}/></div></details>
    <label className="block"><span className="label">Initial status</span><select value={status} onChange={e=>setStatus(e.target.value as "draft"|"open")}>

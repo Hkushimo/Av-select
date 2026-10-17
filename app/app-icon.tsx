@@ -1,6 +1,7 @@
 import type {ReactNode} from "react";
-type IconName="map-pin"|"home"|"jobs"|"calendar"|"user"|"logout"|"activity"|"chevron-left"|"chevron-right"|"clock"|"check"|"sliders"|"menu"|"x";
+type IconName="wallet"|"map-pin"|"home"|"jobs"|"calendar"|"user"|"logout"|"activity"|"chevron-left"|"chevron-right"|"clock"|"check"|"sliders"|"menu"|"x";
 const paths:Record<IconName,ReactNode>={
+ wallet:<><rect x="3" y="6" width="18" height="15" rx="2"/><path d="M3 10V5a2 2 0 0 1 2-2h13"/><path d="M21 12h-6a2 2 0 0 0 0 4h6"/><circle cx="15" cy="14" r=".5" fill="currentColor" stroke="none"/></>,
  "map-pin":<><path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/></>,
  home:<><path d="m3 10 9-7 9 7"/><path d="M5 9.5V21h14V9.5M9 21v-7h6v7"/></>,
  jobs:<><rect x="3" y="7" width="18" height="14" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 13h18M10 13v2h4v-2"/></>,
