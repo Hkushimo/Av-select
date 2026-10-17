@@ -81,7 +81,7 @@ export default function ManageJob({jobId,initialStatus,startsAt,endsAt,technicia
   setBusy(true);setError("");setNotice("");
   const {data,error}=await browserDb().from("job_offers").insert(
    selected.map(id=>({job_id:jobId,technician_id:id,status:"pending"}))
-  ).select("id,technician_id,status");
+  ).select("id,technician_id,status,assigned_role");
   if(error)setError(error.message);
   else{setExistingOffers(items=>[...items,...(data||[])]);setSelected([]);setNotice("Offers saved. Technicians can view them under Job offers.");router.refresh()}
   setBusy(false);
