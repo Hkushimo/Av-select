@@ -4,7 +4,7 @@ import {notFound,redirect} from "next/navigation";
 import {currentRole} from "@/lib/server";
 import ManageJob from "../manage-job";
 import DeleteJob from "../delete-job";
-import JobProductionEditor from "../production-editor";
+import JobProductionEditor,{JobSignalFlowSection} from "../production-editor";
 import type {FlowConnection} from "../signal-flow";
 import Breadcrumbs from "../../breadcrumbs";
 
@@ -28,13 +28,14 @@ export default async function JobDetails({params}:Props){
  return <main className="mx-auto max-w-3xl px-4 py-6 space-y-5">
   <Breadcrumbs items={[{label:"Dashboard",href:"/admin"},{label:"Jobs",href:"/admin/jobs"},{label:job.title}]}/>
   <PageHeading eyebrow="Job details" title={job.title} description={job.venue||"Venue TBD"}/>
+  <JobProductionEditor jobId={job.id} initialVenue={job.venue||""} initialAddress={job.address||""}/>
   <section className="panel space-y-3 text-sm">
    <div><span className="label">Start</span><p>{when(job.starts_at)}</p></div>
    {job.ends_at&&<div><span className="label">End</span><p>{when(job.ends_at)}</p></div>}
    {job.rate&&<div><span className="label">Rate</span><p>{job.rate}</p></div>}
    {job.details&&<div><span className="label">Call details</span><p className="whitespace-pre-wrap break-words">{job.details}</p></div>}
   </section>
-  <JobProductionEditor jobId={job.id} initialVenue={job.venue||""} initialAddress={job.address||""} initialFlow={(Array.isArray(job.signal_flow)?job.signal_flow:[]) as FlowConnection[]}/>
+  <JobSignalFlowSection jobId={job.id} initialFlow={(Array.isArray(job.signal_flow)?job.signal_flow:[]) as FlowConnection[]}/>
   <ManageJob jobId={job.id} initialStatus={status}
     startsAt={job.starts_at} endsAt={job.ends_at} technicians={technicians||[]} ratings={ratings||[]} offers={offers||[]} requirements={requirements||[]}/>
   <DeleteJob jobId={job.id} title={job.title} offerCount={offers?.length||0}/>
