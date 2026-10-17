@@ -92,8 +92,6 @@ export default function InviteForm(){
     <button type="button" className="text-blue-300 underline" onClick={copy}>Copy link</button>
     <button type="button" className="muted underline" disabled={busy} onClick={generate}>New link</button>
    </div>}
-   {inviteUrl&&<label className="block"><span className="label">Private invite link</span>
-    <textarea aria-label="Private invite link" readOnly value={inviteUrl} rows={2} className="text-xs" onFocus={e=>e.currentTarget.select()}/></label>}
    {notice&&<p role="status" className="text-green-300 text-xs">{notice}</p>}
    {error&&<p role="alert" className="text-red-300 text-sm">{error}</p>}
   </div>}
