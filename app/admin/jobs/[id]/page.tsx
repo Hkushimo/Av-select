@@ -32,7 +32,7 @@ export default async function JobDetails({params}:Props){
    <a className="pill text-blue-300" href="#job-staffing">Crew & offers</a>
   </nav>
   <ManageJob mode="setup" jobId={job.id} initialStatus={status}
-    startsAt={job.starts_at} endsAt={job.ends_at} technicians={technicians||[]} ratings={ratings||[]} offers={offers||[]} requirements={requirements||[]}/>
+    startsAt={job.starts_at} endsAt={job.ends_at} technicians={technicians||[]} ratings={ratings||[]} offers={offers||[]} requirements={requirements||[]} roleNames={((Array.isArray(job.role_flows)?job.role_flows:[]) as RoleFlow[]).map(f=>f.role)}/>
   <div id="job-production" className="space-y-3 scroll-mt-24">
    <JobProductionEditor jobId={job.id} initialVenue={job.venue||""} initialAddress={job.address||""}/>
    <section className="panel !p-4 sm:!p-5 space-y-3">
@@ -43,7 +43,7 @@ export default async function JobDetails({params}:Props){
    <JobSignalFlowSection jobId={job.id} initialFlow={(Array.isArray(job.signal_flow)?job.signal_flow:[]) as FlowConnection[]}/>
   </div>
   <ManageJob mode="staffing" jobId={job.id} initialStatus={status}
-    startsAt={job.starts_at} endsAt={job.ends_at} technicians={technicians||[]} ratings={ratings||[]} offers={offers||[]} requirements={requirements||[]}/>
+    startsAt={job.starts_at} endsAt={job.ends_at} technicians={technicians||[]} ratings={ratings||[]} offers={offers||[]} requirements={requirements||[]} roleNames={((Array.isArray(job.role_flows)?job.role_flows:[]) as RoleFlow[]).map(f=>f.role)}/>
   <DeleteJob jobId={job.id} title={job.title} offerCount={offers?.length||0}/>
  </main>;
 }

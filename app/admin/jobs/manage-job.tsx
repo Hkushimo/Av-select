@@ -8,8 +8,8 @@ type JobStatus="draft"|"open"|"closed";
 type Tech=RosterTech;
 type Offer={id:string;technician_id:string;status:string};
 type Requirement={skill:string;min_level:number;required:boolean};
-export default function ManageJob({jobId,initialStatus,startsAt,endsAt,technicians,ratings,offers,requirements,mode}:{
- jobId:string;initialStatus:JobStatus;startsAt:string;endsAt:string|null;technicians:Tech[];ratings:RosterRating[];offers:Offer[];requirements:Requirement[];mode:"setup"|"staffing";
+export default function ManageJob({jobId,initialStatus,startsAt,endsAt,technicians,ratings,offers,requirements,mode,roleNames}:{
+ jobId:string;initialStatus:JobStatus;startsAt:string;endsAt:string|null;technicians:Tech[];ratings:RosterRating[];offers:Offer[];requirements:Requirement[];mode:"setup"|"staffing";roleNames:string[];
 }){
  const router=useRouter();
  const [status,setStatus]=useState<JobStatus>(initialStatus),[busy,setBusy]=useState(false);

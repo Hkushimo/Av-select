@@ -2,7 +2,8 @@
 import {useState} from "react";
 import {useRouter} from "next/navigation";
 import {browserDb} from "@/lib/supabase";
-import SignalFlowEditor,{SignalFlowView,type FlowConnection} from "./signal-flow";
+import RoleFlowEditor from "./role-flow-editor";
+import type {RoleFlow} from "./role-flow-types";
 
 export default function JobProductionEditor({jobId,initialVenue,initialAddress}:{
  jobId:string;initialVenue:string;initialAddress:string;
@@ -37,15 +38,15 @@ export default function JobProductionEditor({jobId,initialVenue,initialAddress}:
  </section>;
 }
 
-export function JobSignalFlowSection({jobId,initialFlow}:{jobId:string;initialFlow:FlowConnection[]}){
+export function JobSignalFlowSection({jobId,initialFlows}:{jobId:string;initialFlows:RoleFlow[]}){
  const router=useRouter();
- const [editing,setEditing]=useState(false),[flow,setFlow]=useState<FlowConnection[]>(initialFlow);
+ const [editing,setEditing]=useState(false),[flows,setFlows]=useState<RoleFlow[]>(initialFlows);
  const [busy,setBusy]=useState(false),[notice,setNotice]=useState(""),[error,setError]=useState("");
  async function save(){
   setBusy(true);setError("");setNotice("");
-  const {error}=await browserDb().from("jobs").update({signal_flow:flow}).eq("id",jobId);
+  const {error}=await browserDb().from("jobs").update({role_flows:flows}).eq("id",jobId);
   if(error)setError(error.message);
-  else{setEditing(false);setNotice("Signal flow saved.");router.refresh()}
+  else{setEditing(false);setNotice("Role-based signal flows saved.");router.refresh()}
   setBusy(false);
  }
  return <section className="panel !p-4 sm:!p-5 space-y-3">
@@ -53,9 +54,14 @@ export function JobSignalFlowSection({jobId,initialFlow}:{jobId:string;initialFl
    <h2 className="text-lg font-semibold">Equipment & signal flow</h2>
    <button type="button" className="text-blue-300 text-sm underline" onClick={()=>setEditing(v=>!v)} disabled={busy}>{editing?"Close":"Edit"}</button>
   </div>
-  {!editing?<SignalFlowView connections={flow}/>:<div className="space-y-3">
-   <SignalFlowEditor value={flow} onChange={setFlow} disabled={busy}/>
-   <button type="button" className="primary w-full" onClick={save} disabled={busy}>{busy?"Saving…":"Save signal flow"}</button>
+  {!editing?<div className="space-y-2">
+   {flows.length?flows.map(f=><div key={f.role} className="rounded-lg border border-slate-700/70 px-3 py-2.5">
+    <p className="font-medium text-sm">{f.role}</p>
+    <p className="muted text-xs">{f.connections.length} connection{f.connections.length===1?"":"s"}</p>
+   </div>):<p className="muted text-sm">No role-specific flows yet.</p>}
+  </div>:<div className="space-y-3">
+   <RoleFlowEditor value={flows} onChange={setFlows} disabled={busy}/>
+   <button type="button" className="primary w-full" onClick={save} disabled={busy}>{busy?"Saving…":"Save role flows"}</button>
   </div>}
   {notice&&<p role="status" className="text-green-300 text-xs">{notice}</p>}
   {error&&<p role="alert" className="text-red-300 text-sm">{error}</p>}
