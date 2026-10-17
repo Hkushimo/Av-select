@@ -40,7 +40,7 @@ export default async function JobDetails({params}:Props){
     {job.rate&&<p className="text-sm"><span className="muted">Rate · </span>{job.rate}</p>}
     {job.details?<p className="text-sm whitespace-pre-wrap break-words">{job.details}</p>:<p className="muted text-sm">No call notes added.</p>}
    </section>
-   <JobSignalFlowSection jobId={job.id} initialFlow={(Array.isArray(job.signal_flow)?job.signal_flow:[]) as FlowConnection[]}/>
+   <JobSignalFlowSection jobId={job.id} initialFlows={(Array.isArray(job.signal_flow)?job.signal_flow:[]) as DepartmentFlow[]}/>
   </div>
   <ManageJob mode="staffing" jobId={job.id} initialStatus={status}
     startsAt={job.starts_at} endsAt={job.ends_at} technicians={technicians||[]} ratings={ratings||[]} offers={offers||[]} requirements={requirements||[]}/>
