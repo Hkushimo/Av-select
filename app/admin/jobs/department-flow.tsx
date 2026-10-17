@@ -1,35 +1,39 @@
 "use client";
 import {useState} from "react";
 import SignalFlowEditor,{SignalFlowView,type FlowConnection} from "./signal-flow";
+
 export type DepartmentFlow=FlowConnection & {department?:string};
-const defaults=["Video","Audio","Lighting","Graphics","General"];
+const tabs=["Video","Audio"] as const;
+type Tab=(typeof tabs)[number];
+
+// Connections made before departments existed are kept under Video.
+function belongsTo(connection:DepartmentFlow,tab:Tab){
+ const department=connection.department||"General";
+ return department===tab||(tab==="Video"&&department==="General");
+}
+function FlowSwitcher({tab,onChange,label}:{tab:Tab;onChange:(tab:Tab)=>void;label:string}){
+ return <div className="flex rounded-xl bg-slate-800 p-1 gap-1" role="tablist" aria-label={label}>
+  {tabs.map(t=><button key={t} type="button" role="tab" aria-selected={tab===t}
+   onClick={()=>onChange(t)} className={"flex-1 rounded-lg px-3 py-3 text-sm font-semibold "+(tab===t?"bg-blue-600 text-white":"text-slate-300 hover:bg-slate-700")}>{t}</button>)}
+ </div>;
+}
 export function FlowTabs({connections}:{connections:DepartmentFlow[]}){
- const groups=Array.from(new Set([...defaults.filter(x=>connections.some(c=>(c.department||"General")===x)),...connections.map(c=>c.department||"General")]));
- const [tab,setTab]=useState(groups[0]||"Video");
- const shown=connections.filter(c=>(c.department||"General")===tab);
+ const [tab,setTab]=useState<Tab>("Video");
  return <div className="space-y-3">
-  <div className="flex gap-2 overflow-x-auto pb-1" role="tablist" aria-label="Signal flow department">
-   {groups.map(g=><button type="button" role="tab" aria-selected={tab===g} key={g} onClick={()=>setTab(g)} className={"pill !py-2 text-sm shrink-0 "+(tab===g?"bg-blue-600 border-blue-500":"")}>{g}</button>)}
-  </div>
-  <SignalFlowView connections={shown}/>
+  <FlowSwitcher tab={tab} onChange={setTab} label="Signal flow"/>
+  <SignalFlowView connections={connections.filter(c=>belongsTo(c,tab))}/>
  </div>;
 }
 export default function DepartmentFlowEditor({value,onChange,disabled=false}:{value:DepartmentFlow[];onChange:(v:DepartmentFlow[])=>void;disabled?:boolean}){
- const tabs=Array.from(new Set([...defaults,...value.map(c=>c.department||"General")]));
- const [tab,setTab]=useState("Video");
- const [custom,setCustom]=useState("");
- const selected=value.filter(c=>(c.department||"General")===tab);
+ const [tab,setTab]=useState<Tab>("Video");
+ const selected=value.filter(c=>belongsTo(c,tab));
  function setSelected(next:FlowConnection[]){
-  if(value.filter(c=>(c.department||"General")!==tab).length+next.length>40)return;
-  onChange([...value.filter(c=>(c.department||"General")!==tab),...next.map(c=>({...c,department:tab}))]);
+  const remaining=value.filter(c=>!belongsTo(c,tab));
+  if(remaining.length+next.length>40)return;
+  onChange([...remaining,...next.map(c=>({...c,department:tab}))]);
  }
  return <div className="space-y-3">
-  <div className="flex gap-2 overflow-x-auto pb-1" role="tablist" aria-label="Edit department flow">
-   {tabs.map(t=><button type="button" role="tab" aria-selected={tab===t} key={t} onClick={()=>setTab(t)} className={"pill !py-2 text-sm shrink-0 "+(tab===t?"bg-blue-600 border-blue-500":"")}>{t}</button>)}
-  </div>
-  <p className="muted text-xs">Editing {tab} · {selected.length} connections. Simple connections are shared with everyone on the job.</p>
+  <FlowSwitcher tab={tab} onChange={setTab} label="Edit signal flow"/>
   <SignalFlowEditor key={tab} value={selected} onChange={setSelected} disabled={disabled}/>
-  <div className="flex items-end gap-2"><label className="flex-1 min-w-0"><span className="label">Another department (optional)</span><input value={custom} onChange={e=>setCustom(e.target.value)} maxLength={60} placeholder="e.g. Camera"/></label>
-  <button type="button" className="pill !py-2 text-sm" disabled={!custom.trim()||disabled} onClick={()=>{setTab(custom.trim());setCustom("")}}>Open tab</button></div>
  </div>;
 }
