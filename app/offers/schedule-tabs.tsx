@@ -49,7 +49,7 @@ function OfferCard({offer}:{offer:ScheduleOffer}){
    </summary>
    <div className="space-y-4 border-t border-slate-700 px-3 py-3">
     {job?.details&&<div className="space-y-1"><p className="label">Call details</p><p className="text-sm whitespace-pre-wrap break-words">{job.details}</p></div>}
-    {!!connections.length&&<div className="space-y-2"><p className="label">Your equipment & signal flow</p><FlowTabs connections={job.signal_flow||[]}/></div>}
+    {!!job?.signal_flow?.length&&<div className="space-y-2"><p className="label">Your equipment & signal flow</p><FlowTabs connections={job.signal_flow||[]}/></div>}
    </div>
   </details>}
   {offer.status==="pending"&&<OfferActions id={offer.id}/>}
