@@ -1,5 +1,4 @@
 import PageHeading from "@/app/page-heading";
-import Link from "next/link";
 import {notFound,redirect} from "next/navigation";
 import {currentRole} from "@/lib/server";
 import ManageJob from "../manage-job";
@@ -24,19 +23,26 @@ export default async function JobDetails({params}:Props){
  if(error)throw new Error("Unable to load job.");
  if(!job)notFound();
  const status=job.status==="open"||job.status==="closed"?job.status:"draft";
- const when=(value:string)=>new Date(value).toLocaleString("en-US",{dateStyle:"medium",timeStyle:"short"});
  return <main className="mx-auto max-w-3xl px-4 py-6 space-y-5">
   <Breadcrumbs items={[{label:"Dashboard",href:"/admin"},{label:"Jobs",href:"/admin/jobs"},{label:job.title}]}/>
   <PageHeading eyebrow="Job details" title={job.title} description={job.venue||"Venue TBD"}/>
-  <JobProductionEditor jobId={job.id} initialVenue={job.venue||""} initialAddress={job.address||""}/>
-  <section className="panel space-y-3 text-sm">
-   <div><span className="label">Start</span><p>{when(job.starts_at)}</p></div>
-   {job.ends_at&&<div><span className="label">End</span><p>{when(job.ends_at)}</p></div>}
-   {job.rate&&<div><span className="label">Rate</span><p>{job.rate}</p></div>}
-   {job.details&&<div><span className="label">Call details</span><p className="whitespace-pre-wrap break-words">{job.details}</p></div>}
-  </section>
-  <JobSignalFlowSection jobId={job.id} initialFlow={(Array.isArray(job.signal_flow)?job.signal_flow:[]) as FlowConnection[]}/>
-  <ManageJob jobId={job.id} initialStatus={status}
+  <nav aria-label="Job page sections" className="flex gap-2 flex-wrap text-sm">
+   <a className="pill text-blue-300" href="#job-schedule">Schedule</a>
+   <a className="pill text-blue-300" href="#job-production">Production</a>
+   <a className="pill text-blue-300" href="#job-staffing">Crew & offers</a>
+  </nav>
+  <ManageJob mode="setup" jobId={job.id} initialStatus={status}
+    startsAt={job.starts_at} endsAt={job.ends_at} technicians={technicians||[]} ratings={ratings||[]} offers={offers||[]} requirements={requirements||[]}/>
+  <div id="job-production" className="space-y-3 scroll-mt-24">
+   <JobProductionEditor jobId={job.id} initialVenue={job.venue||""} initialAddress={job.address||""}/>
+   <section className="panel !p-4 sm:!p-5 space-y-3">
+    <h2 className="text-lg font-semibold">Call details</h2>
+    {job.rate&&<p className="text-sm"><span className="muted">Rate · </span>{job.rate}</p>}
+    {job.details?<p className="text-sm whitespace-pre-wrap break-words">{job.details}</p>:<p className="muted text-sm">No call notes added.</p>}
+   </section>
+   <JobSignalFlowSection jobId={job.id} initialFlow={(Array.isArray(job.signal_flow)?job.signal_flow:[]) as FlowConnection[]}/>
+  </div>
+  <ManageJob mode="staffing" jobId={job.id} initialStatus={status}
     startsAt={job.starts_at} endsAt={job.ends_at} technicians={technicians||[]} ratings={ratings||[]} offers={offers||[]} requirements={requirements||[]}/>
   <DeleteJob jobId={job.id} title={job.title} offerCount={offers?.length||0}/>
  </main>;

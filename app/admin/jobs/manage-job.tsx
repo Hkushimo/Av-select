@@ -8,8 +8,8 @@ type JobStatus="draft"|"open"|"closed";
 type Tech=RosterTech;
 type Offer={id:string;technician_id:string;status:string};
 type Requirement={skill:string;min_level:number;required:boolean};
-export default function ManageJob({jobId,initialStatus,startsAt,endsAt,technicians,ratings,offers,requirements}:{
- jobId:string;initialStatus:JobStatus;startsAt:string;endsAt:string|null;technicians:Tech[];ratings:RosterRating[];offers:Offer[];requirements:Requirement[];
+export default function ManageJob({jobId,initialStatus,startsAt,endsAt,technicians,ratings,offers,requirements,mode}:{
+ jobId:string;initialStatus:JobStatus;startsAt:string;endsAt:string|null;technicians:Tech[];ratings:RosterRating[];offers:Offer[];requirements:Requirement[];mode:"setup"|"staffing";
 }){
  const router=useRouter();
  const [status,setStatus]=useState<JobStatus>(initialStatus),[busy,setBusy]=useState(false);
@@ -96,32 +96,35 @@ export default function ManageJob({jobId,initialStatus,startsAt,endsAt,technicia
  }
  function toggle(id:string){setSelected(list=>list.includes(id)?list.filter(x=>x!==id):[...list,id])}
  return <div className="space-y-5">
-  <section className="panel space-y-3">
-   <h2 className="font-semibold text-lg">Job status</h2>
-   <p className="muted text-sm">Draft jobs are for planning. Open a job before sending offers. Closing a job stops new offers.</p>
+  {mode==="setup"?<div className="space-y-3">  <section className="panel !p-4 sm:!p-5 space-y-3">
+   <div className="flex flex-wrap items-center justify-between gap-2">
+    <h2 className="font-semibold text-lg">Job status</h2>
+    <span className="muted text-xs">Open to send offers</span>
+   </div>
    <div className="flex flex-wrap gap-2">
     {(["draft","open","closed"] as JobStatus[]).map(s=><button type="button" key={s} disabled={busy} onClick={()=>changeStatus(s)}
       className={"pill capitalize "+(status===s?"bg-blue-600 border-blue-500":"")}>{s}</button>)}
    </div>
   </section>
-  <section className="panel !p-4 sm:!p-5 space-y-3">
-   <div className="flex items-center justify-between gap-3">
-    <h2 className="font-semibold text-lg">Job schedule</h2>
-    <span className="text-xs muted">Local time</span>
+  <details className="panel !p-4 sm:!p-5 group" id="job-schedule">
+   <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden flex flex-wrap items-center justify-between gap-3">
+    <div className="min-w-0">
+     <h2 className="font-semibold text-lg">Job schedule</h2>
+     <p className="muted text-sm mt-1">{new Date(startsAt).toLocaleString("en-US",{dateStyle:"medium",timeStyle:"short"})}{endsAt?" – "+new Date(endsAt).toLocaleString("en-US",{hour:"numeric",minute:"2-digit",month:"short",day:"numeric"}):""}</p>
+    </div>
+    <span className="text-blue-300 text-sm group-open:hidden">Edit</span>
+    <span className="text-blue-300 text-sm hidden group-open:inline">Close</span>
+   </summary>
+   <div className="space-y-3 pt-4">
+    <p className="muted text-xs">Dates shown in your local time. Changes update assigned technicians.</p>
+    <div className="grid gap-3 sm:grid-cols-2">
+     <label className="block min-w-0"><span className="label">Start date & time</span><input type="datetime-local" value={startInput} disabled={busy} onChange={e=>setStartInput(e.target.value)}/></label>
+     <label className="block min-w-0"><span className="label">End date & time (optional)</span><input type="datetime-local" value={endInput} disabled={busy} onChange={e=>setEndInput(e.target.value)}/></label>
+    </div>
+    <button type="button" className="primary !px-4 !py-2.5 text-sm" disabled={busy||!startInput||(startInput===toLocal(startsAt)&&endInput===toLocal(endsAt))} onClick={saveDates}>Save dates</button>
    </div>
-   <div className="grid gap-3 sm:grid-cols-2">
-    <label className="block min-w-0"><span className="label">Start date & time</span>
-     <input type="datetime-local" className="min-w-0" value={startInput} disabled={busy} onChange={e=>setStartInput(e.target.value)}/></label>
-    <label className="block min-w-0"><span className="label">End date & time (optional)</span>
-     <input type="datetime-local" className="min-w-0" value={endInput} disabled={busy} onChange={e=>setEndInput(e.target.value)}/></label>
-   </div>
-   <div className="flex items-center justify-between gap-3 flex-wrap">
-    <p className="muted text-xs flex-1">Changes update the crew's schedules.</p>
-    <button className="primary !px-4 !py-2.5 text-sm" type="button"
-      disabled={busy||!startInput||(startInput===toLocal(startsAt)&&endInput===toLocal(endsAt))} onClick={saveDates}>Save changes</button>
-   </div>
-  </section>
-  <details className="panel !p-4 sm:!p-5">
+  </details>
+</div>:<div className="space-y-3" id="job-staffing">  <details className="panel !p-4 sm:!p-5">
    <summary className="cursor-pointer font-semibold text-lg flex items-center justify-between gap-3">
     <span>Staffing requirements <span className="muted text-sm font-normal">({currentRequirements.length})</span></span>
     <span className="text-blue-300 text-xs font-normal shrink-0">Edit</span>
@@ -150,8 +153,27 @@ export default function ManageJob({jobId,initialStatus,startsAt,endsAt,technicia
    </div>
   </details>
   <section className="panel space-y-3">
-   <h2 className="font-semibold text-lg">Send job offers</h2>
-   <p className="muted text-sm">Select technicians to offer this job. An offer is not a confirmed booking.</p>
+   <h2 className="font-semibold text-lg">Crew & bookings ({existingOffers.length})</h2>
+   {existingOffers.length===0&&<p className="muted text-sm">No offers or bookings yet.</p>}
+   {existingOffers.map(o=><div key={o.id} className="py-3 border-b border-slate-700 space-y-2">
+    <p className="font-semibold text-sm">{technicians.find(t=>t.user_id===o.technician_id)?.full_name||"Technician"}</p>
+    <p className={o.status==="confirmed"?"text-green-300 text-xs":"muted text-xs"}>{o.status==="confirmed"?"Booked":o.status==="accepted"?"Accepted · Awaiting confirmation":o.status}</p>
+    <div className="flex flex-wrap gap-2">
+     {o.status==="accepted"&&<button className="primary text-xs" disabled={busy} onClick={()=>updateBooking(o,"confirmed")}>Confirm booking</button>}
+     {o.status==="confirmed"&&<button className="pill text-xs" disabled={busy} onClick={()=>updateBooking(o,"accepted")}>Undo confirmation</button>}
+     <button className="pill text-xs text-red-300" disabled={busy} onClick={()=>release(o)}>{o.status==="pending"?"Withdraw offer":"Release technician"}</button>
+    </div>
+   </div>)}
+   <p className="muted text-xs">Accepted means interested. Confirm booking to finalize. Release removes the offer and calendar entry.</p>
+  </section>
+  <details className="panel !p-4 sm:!p-5 group">
+   <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden flex items-center justify-between gap-2">
+    <h2 className="font-semibold text-lg">Send job offers</h2>
+    <span className="text-blue-300 text-sm group-open:hidden">Select crew</span>
+    <span className="text-blue-300 text-sm hidden group-open:inline">Close</span>
+   </summary>
+   <div className="space-y-3 pt-4">
+   <p className="muted text-xs">Select technicians to invite. Offers are not confirmed bookings.</p>
    {status!=="open"&&<p className="text-amber-200 text-sm">Set job status to Open to send offers.</p>}
    <div className="space-y-2 border border-slate-700 rounded-xl p-3">
     <input type="search" aria-label="Search candidates" placeholder="Search names, city, specialties…" value={search} onChange={e=>setSearch(e.target.value)}/>
@@ -175,21 +197,9 @@ export default function ManageJob({jobId,initialStatus,startsAt,endsAt,technicia
     {busy?"Saving…":`Offer job to ${selected.length} technician${selected.length===1?"":"s"}`}
    </button>
    <p className="muted text-xs">Offers appear in technicians' app accounts; this does not send SMS or push notifications.</p>
-  </section>
-  <section className="panel space-y-3">
-   <h2 className="font-semibold text-lg">Crew & bookings ({existingOffers.length})</h2>
-   {existingOffers.length===0&&<p className="muted text-sm">No offers or bookings yet.</p>}
-   {existingOffers.map(o=><div key={o.id} className="py-3 border-b border-slate-700 space-y-2">
-    <p className="font-semibold text-sm">{technicians.find(t=>t.user_id===o.technician_id)?.full_name||"Technician"}</p>
-    <p className={o.status==="confirmed"?"text-green-300 text-xs":"muted text-xs"}>{o.status==="confirmed"?"Booked":o.status==="accepted"?"Accepted · Awaiting confirmation":o.status}</p>
-    <div className="flex flex-wrap gap-2">
-     {o.status==="accepted"&&<button className="primary text-xs" disabled={busy} onClick={()=>updateBooking(o,"confirmed")}>Confirm booking</button>}
-     {o.status==="confirmed"&&<button className="pill text-xs" disabled={busy} onClick={()=>updateBooking(o,"accepted")}>Undo confirmation</button>}
-     <button className="pill text-xs text-red-300" disabled={busy} onClick={()=>release(o)}>{o.status==="pending"?"Withdraw offer":"Release technician"}</button>
-    </div>
-   </div>)}
-   <p className="muted text-xs">Accepted means interested. Confirm booking to finalize. Release removes the offer and calendar entry.</p>
-  </section>
+   </div>
+  </details>
+</div>}
   {notice&&<p className="text-green-300 text-sm" role="status">{notice}</p>}
   {error&&<p className="text-red-400 text-sm" role="alert">{error}</p>}
  </div>;
