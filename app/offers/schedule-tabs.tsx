@@ -92,15 +92,11 @@ export default function ScheduleTabs({offers,userId}:{offers:ScheduleOffer[];use
      </div>
      <div className="grid grid-cols-7 gap-1 text-center">{["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map(d=><div key={d} className="muted text-xs py-1">{d}</div>)}
       {days.map(d=>{
-       const key=dayKey(d),dayOffers=byDay.get(key)||[],acceptedCount=dayOffers.filter(o=>o.status==="accepted").length,confirmedCount=dayOffers.filter(o=>o.status==="confirmed").length,count=dayOffers.length,isCurrentMonth=d.getMonth()===month.getMonth(),selected=key===selectedDay,isToday=key===dayKey(today);
+       const key=dayKey(d),dayOffers=byDay.get(key)||[],acceptedCount=dayOffers.filter(o=>o.status==="accepted").length,confirmedCount=dayOffers.filter(o=>o.status==="confirmed").length,isCurrentMonth=d.getMonth()===month.getMonth(),selected=key===selectedDay,isToday=key===dayKey(today);
        return <button type="button" key={key} onClick={()=>setSelectedDay(key)}
-        aria-label={`${d.toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"})}, $${acceptedCount} accepted, ${confirmedCount} booked`}
+        aria-label={`${d.toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"})}, ${acceptedCount} accepted, ${confirmedCount} booked`}
         aria-pressed={selected} className={"min-h-14 sm:min-h-16 rounded-lg border flex flex-col items-center justify-start py-2 gap-1 text-sm "+(selected?"border-blue-400 bg-blue-600/25":isToday?"border-blue-700 bg-slate-800":"border-transparent hover:bg-slate-800")+(isCurrentMonth?" text-white":" text-slate-500")}>
-        <span className={isToday?"font-bold text-blue-300":""}>{d.getDate()}</span>
-        {count>0&&<span className="flex items-center gap-1" aria-hidden="true">
-         {acceptedCount>0&&<span className="w-2.5 h-2.5 rounded-full bg-blue-500"/>}
-         {confirmedCount>0&&<span className="w-2.5 h-2.5 rounded-full bg-green-500"/>}
-        </span>}
+        <span className={"flex h-8 w-8 items-center justify-center rounded-full font-semibold "+(acceptedCount>0&&confirmedCount>0?"bg-gradient-to-r from-blue-500 to-green-500 text-white":confirmedCount>0?"bg-green-500 text-white":acceptedCount>0?"bg-blue-500 text-white":isToday?"text-blue-300":"")}>{d.getDate()}</span>
        </button>;
       })}
      </div>
