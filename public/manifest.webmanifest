@@ -9,10 +9,10 @@
   "theme_color": "#090d17",
   "icons": [
     {
-      "src": "/av-select-logo.png",
-      "sizes": "any",
+      "src": "/app-icon-1024.png",
+      "sizes": "1024x1024",
       "type": "image/png",
-      "purpose": "any"
+      "purpose": "any maskable"
     }
   ]
 }
