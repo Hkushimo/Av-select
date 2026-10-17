@@ -97,7 +97,10 @@ export default function ScheduleTabs({offers,userId}:{offers:ScheduleOffer[];use
         aria-label={`${d.toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"})}, $${acceptedCount} accepted, ${confirmedCount} booked`}
         aria-pressed={selected} className={"min-h-14 sm:min-h-16 rounded-lg border flex flex-col items-center justify-start py-2 gap-1 text-sm "+(selected?"border-blue-400 bg-blue-600/25":isToday?"border-blue-700 bg-slate-800":"border-transparent hover:bg-slate-800")+(isCurrentMonth?" text-white":" text-slate-500")}>
         <span className={isToday?"font-bold text-blue-300":""}>{d.getDate()}</span>
-        {count>0&&<span className="flex items-center gap-1" aria-hidden="true">\n         {acceptedCount>0&&<span className="w-2.5 h-2.5 rounded-full bg-blue-500"/>}\n         {confirmedCount>0&&<span className="w-2.5 h-2.5 rounded-full bg-green-500"/>}\n        </span>}
+        {count>0&&<span className="flex items-center gap-1" aria-hidden="true">
+         {acceptedCount>0&&<span className="w-2.5 h-2.5 rounded-full bg-blue-500"/>}
+         {confirmedCount>0&&<span className="w-2.5 h-2.5 rounded-full bg-green-500"/>}
+        </span>}
        </button>;
       })}
      </div>
