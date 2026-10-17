@@ -95,8 +95,13 @@ export default function ScheduleTabs({offers,userId}:{offers:ScheduleOffer[];use
        const key=dayKey(d),dayOffers=byDay.get(key)||[],acceptedCount=dayOffers.filter(o=>o.status==="accepted").length,confirmedCount=dayOffers.filter(o=>o.status==="confirmed").length,isCurrentMonth=d.getMonth()===month.getMonth(),selected=key===selectedDay,isToday=key===dayKey(today);
        return <button type="button" key={key} onClick={()=>setSelectedDay(key)}
         aria-label={`${d.toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"})}, ${acceptedCount} accepted, ${confirmedCount} booked`}
-        aria-pressed={selected} className={"min-h-14 sm:min-h-16 rounded-lg border flex flex-col items-center justify-start py-2 gap-1 text-sm "+(selected?"border-blue-400 bg-blue-600/25":isToday?"border-blue-700 bg-slate-800":"border-transparent hover:bg-slate-800")+(isCurrentMonth?" text-white":" text-slate-500")}>
-        <span className={"flex h-8 w-8 items-center justify-center rounded-full font-semibold "+(acceptedCount>0&&confirmedCount>0?"bg-gradient-to-r from-blue-500 to-green-500 text-white":confirmedCount>0?"bg-green-500 text-white":acceptedCount>0?"bg-blue-500 text-white":isToday?"text-blue-300":"")}>{d.getDate()}</span>
+        aria-pressed={selected}
+        className={"min-h-14 sm:min-h-16 rounded-lg flex flex-col items-center justify-start py-1.5 gap-1 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-400 hover:bg-slate-800/50"+(isCurrentMonth?" text-white":" text-slate-500")}>
+        <span className={"flex h-9 w-9 items-center justify-center rounded-full font-semibold "+(selected?"border border-blue-400 bg-blue-600/20 text-white":isToday?"text-blue-300":"")}>{d.getDate()}</span>
+        {(acceptedCount>0||confirmedCount>0)&&<span className="flex flex-wrap items-center justify-center gap-1" aria-hidden="true">
+         {acceptedCount>0&&<span className="min-w-4 h-4 px-1 rounded-full bg-blue-500 text-[10px] font-bold leading-4 text-white">{acceptedCount}</span>}
+         {confirmedCount>0&&<span className="min-w-4 h-4 px-1 rounded-full bg-green-500 text-[10px] font-bold leading-4 text-white">{confirmedCount}</span>}
+        </span>}
        </button>;
       })}
      </div>
