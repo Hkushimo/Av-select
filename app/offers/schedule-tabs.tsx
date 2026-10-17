@@ -37,7 +37,7 @@ function OfferCard({offer}:{offer:ScheduleOffer}){
     <span className="text-sm"><span className="muted">Rate </span><span className="font-medium">{job.rate}</span></span>
    </div>}
    {job?.address&&<a href={"https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(job.address)} target="_blank" rel="noopener noreferrer" className="flex items-start gap-3 px-3 py-2.5 text-blue-300 hover:bg-slate-800/40">
-    <AppIcon name="home" size={18} className="shrink-0 mt-0.5"/>
+    <AppIcon name="map-pin" size={18} className="shrink-0 mt-0.5"/>
     <span className="min-w-0 text-sm break-words underline underline-offset-2">{job.address} <span aria-hidden="true">↗</span></span>
    </a>}
   </div>
