@@ -1,3 +1,4 @@
+import PageHeading from "@/app/page-heading";
 import {currentRole} from "@/lib/server";
 import {redirect} from "next/navigation";
 import Link from "next/link";
@@ -10,7 +11,7 @@ export default async function Jobs(){
  const {data:jobs,error}=await db.from("jobs").select("id,title,venue,starts_at,ends_at,status,rate").order("starts_at",{ascending:false});
  return <main className="mx-auto max-w-4xl px-4 py-6 space-y-5">
   <Breadcrumbs items={[{label:"Dashboard",href:"/admin"},{label:"Jobs"}]}/>
-  <div><p className="text-blue-400 tracking-widest font-bold text-xs">STAFFING</p><h1 className="text-2xl sm:text-3xl font-bold mt-1">Jobs</h1></div>
+  <PageHeading eyebrow="Staffing" title="Jobs"/>
   <JobCreate/>
   <section className="space-y-3">
    <h2 className="font-semibold text-lg">Your jobs <span className="muted text-sm">({jobs?.length??0})</span></h2>

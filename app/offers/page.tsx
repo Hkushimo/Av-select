@@ -1,3 +1,4 @@
+import PageHeading from "@/app/page-heading";
 import {currentRole} from "@/lib/server";
 import {redirect} from "next/navigation";
 import ScheduleTabs,{type ScheduleOffer} from "./schedule-tabs";
@@ -14,7 +15,7 @@ export default async function MySchedule(){
   job:o.jobs as unknown as ScheduleOffer["job"]
  }));
  return <main className="mx-auto max-w-3xl px-4 py-6 space-y-5">
-  <header><p className="tracking-widest text-blue-400 text-xs font-bold">AV SELECT</p><h1 className="text-2xl sm:text-3xl font-bold mt-1">My Schedule</h1></header>
+  <PageHeading eyebrow="Technician schedule" title="My Schedule"/>
   {error?<div role="alert" className="panel text-red-300">Could not load your schedule: {error.message}</div>:
    <ScheduleTabs offers={entries} userId={user.id}/>}
  </main>;

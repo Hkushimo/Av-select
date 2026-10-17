@@ -1,3 +1,4 @@
+import PageHeading from "@/app/page-heading";
 import Link from "next/link";
 import {redirect} from "next/navigation";
 import {currentRole} from "@/lib/server";
@@ -17,8 +18,7 @@ export default async function AdminActivity(){
  const names=new Map((people||[]).map(p=>[p.user_id,p.full_name]));
  return <main className="mx-auto max-w-3xl px-4 py-6 space-y-5">
   <Breadcrumbs items={[{label:"Dashboard",href:"/admin"},{label:"Activity"}]}/>
-  <header><p className="text-xs font-bold tracking-widest text-blue-400">ADMIN</p><h1 className="text-2xl sm:text-3xl font-bold mt-1">Job activity</h1>
-   <p className="muted text-sm mt-2">Recent accepted offers. Declined offers are removed automatically. Viewing this page clears your unread badge.</p></header>
+  <PageHeading eyebrow="Admin" title="Job activity" description="Recent accepted offers. Declined offers are removed automatically. Viewing this page clears your unread badge."/>
   {!error&&<MarkActivitySeen userId={user.id} kind="responses"/>}
   {error?<p role="alert" className="text-red-300">{error.message}</p>:
    !activity?.length?<div className="panel muted">No technician responses yet.</div>:

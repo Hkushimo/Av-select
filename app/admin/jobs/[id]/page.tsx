@@ -1,3 +1,4 @@
+import PageHeading from "@/app/page-heading";
 import Link from "next/link";
 import {notFound,redirect} from "next/navigation";
 import {currentRole} from "@/lib/server";
@@ -24,11 +25,7 @@ export default async function JobDetails({params}:Props){
  const when=(value:string)=>new Date(value).toLocaleString("en-US",{dateStyle:"medium",timeStyle:"short"});
  return <main className="mx-auto max-w-3xl px-4 py-6 space-y-5">
   <Breadcrumbs items={[{label:"Dashboard",href:"/admin"},{label:"Jobs",href:"/admin/jobs"},{label:job.title}]}/>
-  <header>
-   <div className="text-blue-400 tracking-widest text-xs font-bold">JOB DETAILS</div>
-   <h1 className="text-2xl sm:text-3xl font-bold mt-2 break-words">{job.title}</h1>
-   <p className="muted mt-1">{job.venue||"Venue TBD"}</p>
-  </header>
+  <PageHeading eyebrow="Job details" title={job.title} description={job.venue||"Venue TBD"}/>
   <section className="panel space-y-3 text-sm">
    <div><span className="label">Start</span><p>{when(job.starts_at)}</p></div>
    {job.ends_at&&<div><span className="label">End</span><p>{when(job.ends_at)}</p></div>}

@@ -1,3 +1,4 @@
+import PageHeading from "@/app/page-heading";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { currentRole } from "@/lib/server";
@@ -36,9 +37,7 @@ export default async function TechnicianDetails({ params }: Props) {
     <header className="panel flex items-start gap-4">
       <TechnicianAvatar path={technician.avatar_path} name={displayName} size="lg"/>
       <div className="min-w-0">
-        <p className="text-blue-400 text-xs font-bold tracking-[.2em]">TECHNICIAN PROFILE</p>
-        <h1 className="text-2xl sm:text-3xl font-bold mt-1 break-words">{displayName}</h1>
-        <p className="muted text-sm mt-1">{technician.city || "Location not provided"}</p>
+        <PageHeading eyebrow="Technician profile" title={displayName} description={technician.city || "Location not provided"}/>
         <p className="text-xs mt-2 text-blue-300">{technician.completed_at ? "Onboarding complete" : "Onboarding incomplete"}</p>
       </div>
     </header>

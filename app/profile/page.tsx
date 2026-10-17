@@ -1,4 +1,5 @@
 "use client";
+import PageHeading from "@/app/page-heading";
 import {ChangeEvent,useEffect,useState} from "react";
 import ProfileSelections from "./profile-selections";
 import {browserDb} from "@/lib/supabase";
@@ -63,7 +64,7 @@ export default function TechnicianProfile(){
   finally{setBusy(false)}
  }
  return <main className="mx-auto max-w-2xl px-4 py-6 space-y-5">
-  <header><p className="text-blue-400 text-sm font-bold tracking-widest">TECHNICIAN ACCOUNT</p><h1 className="text-3xl font-bold mt-2">My profile</h1></header>
+  <PageHeading eyebrow="Technician account" title="My profile"/>
   {!profile?<div className="panel muted">{error||"Loading profile…"}</div>:<>
    <section className="panel space-y-4"><h2 className="text-lg font-semibold">Profile photo <span className="muted text-sm font-normal">(optional)</span></h2>
     {image?<img alt="Your profile" src={image} className="h-28 w-28 rounded-full object-cover border border-slate-700"/>:

@@ -1,3 +1,4 @@
+import PageHeading from "@/app/page-heading";
 import Link from "next/link";
 import {redirect} from "next/navigation";
 import {currentRole} from "@/lib/server";
@@ -24,11 +25,7 @@ export default async function TechnicianDashboard(){
  const firstName=profile?.full_name?.trim().split(/\s+/)[0];
  const date=(value:string)=>new Date(value).toLocaleString("en-US",{dateStyle:"medium",timeStyle:"short"});
  return <main className="mx-auto max-w-3xl px-4 py-6 space-y-5">
-  <header>
-   <p className="text-xs tracking-[.16em] text-blue-400 font-semibold">TECHNICIAN DASHBOARD</p>
-   <h1 className="text-2xl sm:text-3xl font-bold mt-2">Welcome back{firstName?", "+firstName:""}!</h1>
-   <p className="muted text-sm mt-2">Here's what's happening with your work.</p>
-  </header>
+  <PageHeading eyebrow="Technician dashboard" title={<>Welcome back{firstName?", "+firstName:""}!</>} description="Here's what's happening with your work."/>
   {(profileError||offersError)&&<p role="alert" className="text-red-300 text-sm">Some dashboard information could not load. {profileError?.message||offersError?.message}</p>}
   <div className="grid grid-cols-2 gap-3">
    <Link href="/offers" className="panel !p-4 space-y-2 block hover:border-blue-500">
