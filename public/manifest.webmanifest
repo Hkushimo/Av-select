@@ -1,0 +1,18 @@
+{
+  "name": "AV Select",
+  "short_name": "AV Select",
+  "description": "Private AV technician roster and dispatch",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#090d17",
+  "theme_color": "#090d17",
+  "icons": [
+    {
+      "src": "/av-select-logo.png",
+      "sizes": "any",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
