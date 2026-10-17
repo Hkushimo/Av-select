@@ -14,9 +14,9 @@ export default async function JobDetails({params}:Props){
  const {id}=await params;
  if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id))notFound();
  const [{data:job,error},{data:technicians},{data:offers},{data:requirements},{data:ratings}]=await Promise.all([
-  db.from("jobs").select("id,title,venue,address,signal_flow,starts_at,ends_at,rate,details,status").eq("id",id).maybeSingle(),
+  db.from("jobs").select("id,title,venue,address,role_flows,starts_at,ends_at,rate,details,status").eq("id",id).maybeSingle(),
   db.from("technicians").select("user_id,full_name,city,travel,roles,equipment,avatar_path").order("full_name"),
-  db.from("job_offers").select("id,technician_id,status").eq("job_id",id).neq("status","declined").order("created_at"),
+  db.from("job_offers").select("id,technician_id,status,assigned_role").eq("job_id",id).neq("status","declined").order("created_at"),
   db.from("job_requirements").select("skill,min_level,required").eq("job_id",id).order("skill"),
   db.from("skill_ratings").select("technician_id,skill,level")
  ]);
