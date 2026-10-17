@@ -20,7 +20,7 @@ export default function TechnicianProfile(){
   setId(user.id);
   const {data,error}=await db.from("technicians").select("full_name,phone,city,state,travel,other_skills,roles,equipment,avatar_path").eq("user_id",user.id).maybeSingle();
   if(!active)return;if(error){setError(error.message);return}
-  if(!data){location.replace("/onboarding");return}const location=data.state?{city:data.city||"",state:data.state}:stateFromLegacy(data.city||"");setProfile({...data,city:location.city,state:location.state,phone:formatPhone(data.phone||"")});
+  if(!data){location.replace("/onboarding");return}const homeLocation=data.state?{city:data.city||"",state:data.state}:stateFromLegacy(data.city||"");setProfile({...data,city:homeLocation.city,state:homeLocation.state,phone:formatPhone(data.phone||"")});
   const {data:myRatings,error:myRatingsError}=await db.from("skill_ratings").select("skill,level").eq("technician_id",user.id).order("skill");
   if(active){if(myRatingsError)setRatingsError("Could not load official proficiency ratings.");else setRatings(myRatings||[])}
   if(data.avatar_path){const {data:signed}=await db.storage.from("technician-avatars").createSignedUrl(data.avatar_path,600);
