@@ -3,6 +3,7 @@ import {useMemo,useState} from "react";
 import MarkActivitySeen from "@/app/mark-activity-seen";
 import {OfferActions} from "./responses";
 import {SignalFlowView,type FlowConnection} from "@/app/admin/jobs/signal-flow";
+import AppIcon from "@/app/app-icon";
 
 type Job={title:string;venue:string;address?:string;signal_flow?:FlowConnection[];starts_at:string;ends_at:string|null;rate:string;details:string;status:string};
 export type ScheduleOffer={id:string;status:string;job:Job|null};
@@ -12,21 +13,47 @@ const timeLabel=(iso:string)=>new Date(iso).toLocaleTimeString("en-US",{hour:"nu
 
 function OfferCard({offer}:{offer:ScheduleOffer}){
  const job=offer.job;
- return <article className="panel space-y-3">
+ const booked=offer.status==="confirmed";
+ const accepted=offer.status==="accepted";
+ const statusText=booked?"Booked":accepted?"Accepted":"Pending offer";
+ return <article className="panel !p-4 sm:!p-5 space-y-4">
   <div className="flex items-start justify-between gap-3">
-   <h2 className="text-lg sm:text-xl font-bold break-words">{job?.title||"Job"}</h2>
-   <span className={"pill text-xs capitalize shrink-0 "+(offer.status==="confirmed"?"text-green-300":offer.status==="accepted"?"text-blue-300":"text-amber-200")}>{offer.status==="confirmed"?"Booked":offer.status}</span>
+   <div className="min-w-0">
+    <h3 className="text-lg sm:text-xl font-bold leading-snug break-words">{job?.title||"Job"}</h3>
+    <p className="muted text-sm mt-1">{job?.venue||"Venue TBD"}</p>
+   </div>
+   <span className={"shrink-0 rounded-full border px-3 py-1 text-xs font-semibold "+(booked?"border-green-600/50 bg-green-500/10 text-green-300":accepted?"border-blue-500/50 bg-blue-500/10 text-blue-300":"border-amber-500/50 bg-amber-500/10 text-amber-200")}>{statusText}</span>
   </div>
-  <p className="muted text-sm">{job?.venue||"Venue TBD"}</p>
-  {job?.address&&<a href={"https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(job.address)} target="_blank" rel="noopener noreferrer" className="text-blue-300 text-sm underline break-words">{job.address} ↗ Map</a>}
-  {!!job?.signal_flow?.length&&<details className="rounded-lg border border-slate-700 p-3"><summary className="cursor-pointer text-sm font-medium">Equipment & signal flow</summary><div className="mt-3"><SignalFlowView connections={job.signal_flow}/></div></details>}
-  {job?.starts_at&&<p className="text-sm"><span className="muted">Start: </span>{dateLabel(job.starts_at)}</p>}
-  {job?.ends_at&&<p className="text-sm"><span className="muted">End: </span>{dateLabel(job.ends_at)}</p>}
-  {job?.rate&&<p className="text-sm"><span className="muted">Rate: </span>{job.rate}</p>}
-  {job?.details&&<p className="text-sm whitespace-pre-wrap break-words">{job.details}</p>}
+  <div className="rounded-xl border border-slate-700/70 bg-slate-900/40 divide-y divide-slate-700/70">
+   {job?.starts_at&&<div className="flex items-start gap-3 px-3 py-3">
+    <AppIcon name="calendar" size={18} className="text-blue-300 shrink-0 mt-0.5"/>
+    <div className="min-w-0 text-sm">
+     <p className="font-semibold">{new Date(job.starts_at).toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric",year:"numeric"})}</p>
+     <p className="muted mt-0.5">{new Date(job.starts_at).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"})}{job.ends_at?" – "+(new Date(job.ends_at).toDateString()===new Date(job.starts_at).toDateString()?timeLabel(job.ends_at):dateLabel(job.ends_at)):""}</p>
+    </div>
+   </div>}
+   {job?.rate&&<div className="flex items-center gap-3 px-3 py-2.5">
+    <span className="text-green-300 text-sm font-semibold w-[18px] text-center" aria-hidden="true">$</span>
+    <span className="text-sm"><span className="muted">Rate </span><span className="font-medium">{job.rate}</span></span>
+   </div>}
+   {job?.address&&<a href={"https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(job.address)} target="_blank" rel="noopener noreferrer" className="flex items-start gap-3 px-3 py-2.5 text-blue-300 hover:bg-slate-800/40">
+    <AppIcon name="home" size={18} className="shrink-0 mt-0.5"/>
+    <span className="min-w-0 text-sm break-words underline underline-offset-2">{job.address} <span aria-hidden="true">↗</span></span>
+   </a>}
+  </div>
+  {(!!job?.details||!!job?.signal_flow?.length)&&<details className="group rounded-xl border border-slate-700/70">
+   <summary className="cursor-pointer flex items-center justify-between gap-2 px-3 py-3 text-sm font-semibold list-none [&::-webkit-details-marker]:hidden">
+    <span>Production notes & equipment</span>
+    <span className="text-blue-300 text-xs group-open:hidden">View details ↓</span>
+    <span className="text-blue-300 text-xs hidden group-open:inline">Hide ↑</span>
+   </summary>
+   <div className="space-y-4 border-t border-slate-700 px-3 py-3">
+    {job?.details&&<div className="space-y-1"><p className="label">Call details</p><p className="text-sm whitespace-pre-wrap break-words">{job.details}</p></div>}
+    {!!job?.signal_flow?.length&&<div className="space-y-2"><p className="label">Equipment & signal flow</p><SignalFlowView connections={job.signal_flow}/></div>}
+   </div>
+  </details>}
   {offer.status==="pending"&&<OfferActions id={offer.id}/>}
-  {offer.status==="confirmed"&&<p className="text-green-300 text-xs">Booking confirmed by the organizer.</p>}
-  {offer.status==="accepted"&&<p className="text-blue-300 text-xs">Accepted · Awaiting staffing confirmation. This is not yet a confirmed booking.</p>}
+  {accepted&&<p className="text-blue-300 text-xs">Awaiting admin confirmation · Not yet booked</p>}
  </article>;
 }
 
