@@ -9,7 +9,7 @@ export default async function Admin(){
  if(!user)redirect("/login");
  if(role!=="admin")redirect("/");
  const [{data:techs,error:techError},{data:ratings,error:ratingsError},{count:jobCount}]=await Promise.all([
-  db.from("technicians").select("user_id,full_name,city,travel,roles,equipment,avatar_path").order("full_name"),
+  db.from("technicians").select("user_id,full_name,city,state,travel,roles,equipment,avatar_path").order("full_name"),
   db.from("skill_ratings").select("technician_id,skill,level"),
   db.from("jobs").select("id",{count:"exact",head:true}),
  ]);

@@ -5,6 +5,7 @@ import { currentRole } from "@/lib/server";
 import TechnicianAvatar from "../../technician-avatar";
 import RatingEditor from "./rating-editor";
 import {formatPhone} from "@/lib/phone";
+import {locationText} from "@/lib/us-location";
 import Breadcrumbs from "../../breadcrumbs";
 import DeleteTechnician from "./delete-technician";
 
@@ -19,7 +20,7 @@ export default async function TechnicianDetails({ params }: Props) {
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) notFound();
 
   const [{ data: technician, error: techError }, { data: account }, { data: ratings }] = await Promise.all([
-    db.from("technicians").select("user_id,full_name,phone,city,travel,roles,equipment,other_skills,completed_at,avatar_path").eq("user_id", id).maybeSingle(),
+    db.from("technicians").select("user_id,full_name,phone,city,state,travel,roles,equipment,other_skills,completed_at,avatar_path").eq("user_id", id).maybeSingle(),
     db.from("profiles").select("email").eq("id", id).maybeSingle(),
     db.from("skill_ratings").select("skill,level,updated_at").eq("technician_id", id).order("skill"),
   ]);
@@ -37,7 +38,7 @@ export default async function TechnicianDetails({ params }: Props) {
     <header className="panel flex items-start gap-4">
       <TechnicianAvatar path={technician.avatar_path} name={displayName} size="lg"/>
       <div className="min-w-0">
-        <PageHeading eyebrow="Technician profile" title={displayName} description={technician.city || "Location not provided"}/>
+        <PageHeading eyebrow="Technician profile" title={displayName} description={locationText(technician.city,technician.state)}/>
         <p className="text-xs mt-2 text-blue-300">{technician.completed_at ? "Onboarding complete" : "Onboarding incomplete"}</p>
       </div>
     </header>
@@ -47,7 +48,7 @@ export default async function TechnicianDetails({ params }: Props) {
         <h2 className="text-lg font-semibold">Contact</h2>
         <div><p className="label">Email</p>{account?.email ? <a className="text-blue-300 break-all underline" href={`mailto:${account.email}`}>{account.email}</a> : <p className="muted">Not available</p>}</div>
         <div><p className="label">Phone</p>{technician.phone ? <a className="text-blue-300 underline" href={`tel:${technician.phone.replace(/[^\d+]/g,"")}`}>{formatPhone(technician.phone)}</a> : <p className="muted">Not provided</p>}</div>
-        <div><p className="label">City / state</p><p>{technician.city || "Not provided"}</p></div>
+        <div><p className="label">City / state</p><p>{locationText(technician.city,technician.state)}</p></div>
       </section>
       <section className="panel space-y-3">
         <h2 className="text-lg font-semibold">Travel preference</h2>

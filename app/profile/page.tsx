@@ -5,8 +5,9 @@ import {ChangeEvent,useEffect,useState} from "react";
 import ProfileSelections from "./profile-selections";
 import {browserDb} from "@/lib/supabase";
 import {formatPhone} from "@/lib/phone";
+import {US_STATES,stateFromLegacy} from "@/lib/us-location";
 type Rating={skill:string;level:number};
-type Profile={full_name:string;phone:string;city:string;travel:string;other_skills:string;roles:string[];equipment:string[];avatar_path:string|null};
+type Profile={full_name:string;phone:string;city:string;state:string;travel:string;other_skills:string;roles:string[];equipment:string[];avatar_path:string|null};
 export default function TechnicianProfile(){
  const [id,setId]=useState(""),[profile,setProfile]=useState<Profile|null>(null),[image,setImage]=useState("");
  const [error,setError]=useState(""),[status,setStatus]=useState(""),[busy,setBusy]=useState(false);
@@ -17,9 +18,9 @@ export default function TechnicianProfile(){
   const {data:access}=await db.from("profiles").select("role").eq("id",user.id).maybeSingle();
   if(!active)return;if(access?.role!=="technician"){location.replace("/");return}
   setId(user.id);
-  const {data,error}=await db.from("technicians").select("full_name,phone,city,travel,other_skills,roles,equipment,avatar_path").eq("user_id",user.id).maybeSingle();
+  const {data,error}=await db.from("technicians").select("full_name,phone,city,state,travel,other_skills,roles,equipment,avatar_path").eq("user_id",user.id).maybeSingle();
   if(!active)return;if(error){setError(error.message);return}
-  if(!data){location.replace("/onboarding");return}setProfile({...data,phone:formatPhone(data.phone||"")});
+  if(!data){location.replace("/onboarding");return}const location=data.state?{city:data.city||"",state:data.state}:stateFromLegacy(data.city||"");setProfile({...data,city:location.city,state:location.state,phone:formatPhone(data.phone||"")});
   const {data:myRatings,error:myRatingsError}=await db.from("skill_ratings").select("skill,level").eq("technician_id",user.id).order("skill");
   if(active){if(myRatingsError)setRatingsError("Could not load official proficiency ratings.");else setRatings(myRatings||[])}
   if(data.avatar_path){const {data:signed}=await db.storage.from("technician-avatars").createSignedUrl(data.avatar_path,600);
@@ -29,8 +30,8 @@ export default function TechnicianProfile(){
  async function save(){
   if(!profile||!id)return;setBusy(true);setError("");setStatus("");
   try{
-   if(!profile.full_name.trim()||!profile.city.trim())throw new Error("Name and city are required.");
-   const {error}=await browserDb().from("technicians").update({full_name:profile.full_name.trim(),phone:profile.phone.trim(),city:profile.city.trim(),travel:profile.travel,other_skills:profile.other_skills.trim()}).eq("user_id",id);
+   if(!profile.full_name.trim()||!profile.city.trim()||!profile.state)throw new Error("Name, city and state are required.");
+   const {error}=await browserDb().from("technicians").update({full_name:profile.full_name.trim(),phone:profile.phone.trim(),city:profile.city.trim(),state:profile.state,travel:profile.travel,other_skills:profile.other_skills.trim()}).eq("user_id",id);
    if(error)throw error;setStatus("Profile saved.");
   }catch(e){setError(e instanceof Error?e.message:"Could not save profile.")}
   finally{setBusy(false)}
@@ -78,7 +79,7 @@ export default function TechnicianProfile(){
    <section className="panel space-y-4"><h2 className="text-lg font-semibold">Contact and availability</h2>
     <label className="block"><span className="label">Full name</span><input value={profile.full_name} onChange={e=>field("full_name",e.target.value)}/></label>
     <label className="block"><span className="label">Phone</span><input type="tel" inputMode="tel" autoComplete="tel-national" placeholder="(555) 123-4567" value={profile.phone} onChange={e=>field("phone",formatPhone(e.target.value))}/></label>
-    <label className="block"><span className="label">City / state</span><input value={profile.city} onChange={e=>field("city",e.target.value)}/></label>
+    <label className="block"><span className="label">Home city</span><input placeholder="e.g. Providence" value={profile.city} onChange={e=>field("city",e.target.value)}/></label><label className="block"><span className="label">State</span><select value={profile.state||""} onChange={e=>field("state",e.target.value)}><option value="">Select state</option>{US_STATES.map(([code,name])=><option key={code} value={code}>{name} ({code})</option>)}</select></label>
     <label className="block"><span className="label">Travel preference</span><select value={profile.travel} onChange={e=>field("travel",e.target.value)}><option value="local">Local</option><option value="regional">Regional</option><option value="national">Nationwide</option><option value="international">International</option></select></label>
     <label className="block"><span className="label">Other skills or equipment</span><textarea rows={3} value={profile.other_skills} onChange={e=>field("other_skills",e.target.value)}/></label>
     <button type="button" className="primary w-full" disabled={busy} onClick={save}>{busy?"Saving…":"Save profile"}</button>

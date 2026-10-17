@@ -3,6 +3,7 @@ import {useState} from "react";
 import {useRouter} from "next/navigation";
 import {browserDb} from "@/lib/supabase";
 import {rosterMatch, type RosterTech, type RosterRating} from "../roster-filters";
+import {US_STATES,locationText,stateFromLegacy} from "@/lib/us-location";
 
 type JobStatus="draft"|"open"|"closed";
 type Tech=RosterTech;
@@ -20,14 +21,14 @@ export default function ManageJob({jobId,initialStatus,startsAt,endsAt,technicia
  const [startInput,setStartInput]=useState(()=>toLocal(startsAt));
  const [endInput,setEndInput]=useState(()=>toLocal(endsAt));
  const [currentRequirements,setCurrentRequirements]=useState(requirements);
- const [search,setSearch]=useState(""),[roleFilter,setRoleFilter]=useState(""),[equipmentFilter,setEquipmentFilter]=useState(""),[ratingFilter,setRatingFilter]=useState(""),[minimum,setMinimum]=useState(3);
+ const [search,setSearch]=useState(""),[stateFilter,setStateFilter]=useState(""),[roleFilter,setRoleFilter]=useState(""),[equipmentFilter,setEquipmentFilter]=useState(""),[ratingFilter,setRatingFilter]=useState(""),[minimum,setMinimum]=useState(3);
  const offered=new Set(existingOffers.map(o=>o.technician_id));
  const available=technicians.filter(t=>!offered.has(t.user_id));
  const roleOptions=Array.from(new Set(technicians.flatMap(t=>t.roles||[]))).sort();
  const equipmentOptions=Array.from(new Set(technicians.flatMap(t=>t.equipment||[]))).sort();
  const skillOptions=Array.from(new Set(ratings.map(r=>r.skill))).sort();
- const filteredAvailable=available.filter(t=>rosterMatch(t,ratings,search,roleFilter,equipmentFilter,"",ratingFilter,minimum));
- const clearFilters=()=>{setSearch("");setRoleFilter("");setEquipmentFilter("");setRatingFilter("");setMinimum(3)};
+ const filteredAvailable=available.filter(t=>rosterMatch(t,ratings,search,roleFilter,equipmentFilter,"",ratingFilter,minimum)&&(!stateFilter||(t.state||stateFromLegacy(t.city).state)===stateFilter));
+ const clearFilters=()=>{setSearch("");setStateFilter("");setRoleFilter("");setEquipmentFilter("");setRatingFilter("");setMinimum(3)};
 
  async function changeStatus(next:JobStatus){
   setBusy(true);setError("");setNotice("");
@@ -179,6 +180,7 @@ export default function ManageJob({jobId,initialStatus,startsAt,endsAt,technicia
    <div className="space-y-2 border border-slate-700 rounded-xl p-3">
     <input type="search" aria-label="Search candidates" placeholder="Search names, city, specialties…" value={search} onChange={e=>setSearch(e.target.value)}/>
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+     <label><span className="label">Home state</span><select value={stateFilter} onChange={e=>setStateFilter(e.target.value)}><option value="">All states</option>{US_STATES.map(([code,name])=><option key={code} value={code}>{name} ({code})</option>)}</select></label>
      <label><span className="label">Position</span><select value={roleFilter} onChange={e=>setRoleFilter(e.target.value)}><option value="">Any position</option>{roleOptions.map(r=><option key={r} value={r}>{r}</option>)}</select></label>
      <label><span className="label">Equipment</span><select value={equipmentFilter} onChange={e=>setEquipmentFilter(e.target.value)}><option value="">Any equipment</option>{equipmentOptions.map(r=><option key={r} value={r}>{r}</option>)}</select></label>
      <label><span className="label">Officially rated skill</span><select value={ratingFilter} onChange={e=>setRatingFilter(e.target.value)}><option value="">Any rating / unrated</option>{skillOptions.map(r=><option key={r} value={r}>{r}</option>)}</select></label>
@@ -193,7 +195,7 @@ export default function ManageJob({jobId,initialStatus,startsAt,endsAt,technicia
      <label className="flex items-center gap-3 cursor-pointer">
       <input className="!w-auto" type="checkbox" checked={selected.includes(t.user_id)} onChange={()=>toggle(t.user_id)} />
       <span className="min-w-0"><span className="font-medium text-sm block">{t.full_name||"Incomplete profile"}</span>
-       <span className="muted text-xs block break-words">{[t.city,t.roles?.slice(0,2).join(", ")].filter(Boolean).join(" · ")}{ratingFilter&&<span className="text-blue-300"> · {ratingFilter} {ratings.find(r=>r.technician_id===t.user_id&&r.skill===ratingFilter)?.level}/5</span>}</span></span>
+       <span className="muted text-xs block break-words">{[locationText(t.city,t.state),t.roles?.slice(0,2).join(", ")].filter(Boolean).join(" · ")}{ratingFilter&&<span className="text-blue-300"> · {ratingFilter} {ratings.find(r=>r.technician_id===t.user_id&&r.skill===ratingFilter)?.level}/5</span>}</span></span>
      </label>
      {selected.includes(t.user_id)&&<div className="grid grid-cols-1 sm:grid-cols-2 gap-2 border-t border-slate-700 pt-3">
       <label className="block"><span className="label">Offered position *</span><select value={offerDetails[t.user_id]?.position||""} onChange={e=>setOfferDetails(prev=>({...prev,[t.user_id]:{position:e.target.value,rate:prev[t.user_id]?.rate||""}}))}>
