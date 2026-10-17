@@ -2,7 +2,7 @@
 import {useState} from "react";
 import Link from "next/link";
 import TechnicianAvatar from "./technician-avatar";
-import {US_STATES,locationText,stateFromLegacy,stateName} from "@/lib/us-location";
+import {locationText,stateFromLegacy,stateName} from "@/lib/us-location";
 export type RosterTech={user_id:string;full_name:string;city:string;state:string;travel:string;roles:string[];equipment:string[];avatar_path:string|null};
 export type RosterRating={technician_id:string;skill:string;level:number};
 const norm=(s:string)=>s.trim().toLowerCase();
@@ -13,18 +13,18 @@ export function rosterMatch(t:RosterTech,ratings:RosterRating[],query:string,rol
  return (!q||searchable.includes(q))&&(!role||(t.roles||[]).includes(role))&&(!equipment||(t.equipment||[]).includes(equipment))&&(!travel||t.travel===travel)&&(!ratingSkill||ratings.some(r=>r.technician_id===t.user_id&&r.skill===ratingSkill&&r.level>=minLevel));
 }
 export default function RosterFilters({technicians,ratings}:{technicians:RosterTech[];ratings:RosterRating[]}){
- const [query,setQuery]=useState("");const [stateFilter,setStateFilter]=useState("");
- const filtered=technicians.filter(t=>rosterMatch(t,ratings,query,"","","","",1)&&(!stateFilter||(t.state||stateFromLegacy(t.city).state)===stateFilter));
- const active=!!query.trim()||!!stateFilter;
+ const [query,setQuery]=useState("");
+ const filtered=technicians.filter(t=>rosterMatch(t,ratings,query,"","","","",1));
+ const active=!!query.trim();
  const incomplete=technicians.filter(t=>{const p=t.state?{city:t.city,state:t.state}:stateFromLegacy(t.city);return !p.city||!p.state}).length;
- function clear(){setQuery("");setStateFilter("")}
+ function clear(){setQuery("")}
  return <section className="space-y-3" aria-label="Technician roster">
   <div className="flex items-center justify-between gap-3">
    <h2 className="text-lg font-semibold">Technician roster</h2>
    <span className="text-xs muted">{filtered.length} of {technicians.length}</span>
   </div>
-  <div className="grid gap-2 sm:grid-cols-[1fr_190px]"><input aria-label="Search roster" type="search" placeholder="Search name, city, position, equipment…" value={query} onChange={e=>setQuery(e.target.value)}/><select aria-label="Filter by state" value={stateFilter} onChange={e=>setStateFilter(e.target.value)}><option value="">All states</option>{US_STATES.map(([code,name])=><option key={code} value={code}>{name} ({code})</option>)}</select></div>
-  {incomplete>0&&<p className="text-amber-200 text-xs">{incomplete} technician{incomplete===1?" has":"s have"} an incomplete city/state location. Ask them to update My Profile; they remain visible when all states are shown.</p>}
+  <input aria-label="Search roster" type="search" placeholder="Search name, city, state, position, equipment…" value={query} onChange={e=>setQuery(e.target.value)}/>
+  {incomplete>0&&<p className="text-amber-200 text-xs">{incomplete} technician{incomplete===1?" has":"s have"} an incomplete city/state location. Ask them to update My Profile; they remain visible in the roster.</p>}
   <div className="rounded-2xl border border-slate-700/70 bg-[#121a29] px-3 sm:px-4">
    {!filtered.length?<div className="py-6 space-y-2"><p className="muted text-sm">{technicians.length?"No technicians match your search.":"No technicians yet. Invite your first technician above."}</p>{active&&<button type="button" className="text-blue-300 text-sm underline" onClick={clear}>Clear search</button>}</div>:
     filtered.map((t,index)=>{
