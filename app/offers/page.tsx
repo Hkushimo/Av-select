@@ -8,7 +8,7 @@ export default async function MySchedule(){
  if(!user)redirect("/login");
  if(role!=="technician")redirect("/");
  const {data:offers,error}=await db.from("job_offers")
-  .select("id,status,jobs(title,venue,starts_at,ends_at,rate,details,status)")
+  .select("id,status,jobs(title,venue,address,signal_flow,starts_at,ends_at,rate,details,status)")
   .eq("technician_id",user.id).in("status",["pending","accepted","confirmed"]).order("created_at",{ascending:false});
  const entries:ScheduleOffer[]=(offers||[]).map(o=>({
   id:o.id,status:o.status,

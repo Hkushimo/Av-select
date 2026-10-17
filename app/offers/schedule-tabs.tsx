@@ -2,8 +2,9 @@
 import {useMemo,useState} from "react";
 import MarkActivitySeen from "@/app/mark-activity-seen";
 import {OfferActions} from "./responses";
+import {SignalFlowView,type FlowConnection} from "@/app/admin/jobs/signal-flow";
 
-type Job={title:string;venue:string;starts_at:string;ends_at:string|null;rate:string;details:string;status:string};
+type Job={title:string;venue:string;address?:string;signal_flow?:FlowConnection[];starts_at:string;ends_at:string|null;rate:string;details:string;status:string};
 export type ScheduleOffer={id:string;status:string;job:Job|null};
 const dayKey=(date:Date)=>[date.getFullYear(),String(date.getMonth()+1).padStart(2,"0"),String(date.getDate()).padStart(2,"0")].join("-");
 const dateLabel=(iso:string)=>new Date(iso).toLocaleString("en-US",{dateStyle:"medium",timeStyle:"short"});
@@ -17,6 +18,8 @@ function OfferCard({offer}:{offer:ScheduleOffer}){
    <span className={"pill text-xs capitalize shrink-0 "+(offer.status==="confirmed"?"text-green-300":offer.status==="accepted"?"text-blue-300":"text-amber-200")}>{offer.status==="confirmed"?"Booked":offer.status}</span>
   </div>
   <p className="muted text-sm">{job?.venue||"Venue TBD"}</p>
+  {job?.address&&<a href={"https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(job.address)} target="_blank" rel="noopener noreferrer" className="text-blue-300 text-sm underline break-words">{job.address} ↗ Map</a>}
+  {!!job?.signal_flow?.length&&<details className="rounded-lg border border-slate-700 p-3"><summary className="cursor-pointer text-sm font-medium">Equipment & signal flow</summary><div className="mt-3"><SignalFlowView connections={job.signal_flow}/></div></details>}
   {job?.starts_at&&<p className="text-sm"><span className="muted">Start: </span>{dateLabel(job.starts_at)}</p>}
   {job?.ends_at&&<p className="text-sm"><span className="muted">End: </span>{dateLabel(job.ends_at)}</p>}
   {job?.rate&&<p className="text-sm"><span className="muted">Rate: </span>{job.rate}</p>}
@@ -112,6 +115,8 @@ export default function ScheduleTabs({offers,userId}:{offers:ScheduleOffer[];use
       chosen.map(o=><article key={o.id} className="panel space-y-2">
        <div className="flex items-center justify-between gap-2"><h3 className="font-semibold">{o.job?.title||"Job"}</h3><span className={o.status==="confirmed"?"text-green-300 text-xs shrink-0":"text-blue-300 text-xs shrink-0"}>{o.status==="confirmed"?"Booked":"Accepted"}</span></div>
        <p className="text-sm muted">{o.job?.venue||"Venue TBD"}</p>
+       {o.job?.address&&<a href={"https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(o.job.address)} target="_blank" rel="noopener noreferrer" className="text-blue-300 text-xs underline break-words">{o.job.address} ↗ Map</a>}
+       {!!o.job?.signal_flow?.length&&<details className="rounded-lg border border-slate-700 p-3"><summary className="cursor-pointer text-sm">Equipment & signal flow</summary><div className="mt-3"><SignalFlowView connections={o.job.signal_flow}/></div></details>}
        {o.job?.starts_at&&<p className="text-sm">{dateLabel(o.job.starts_at)}{o.job.ends_at?` – ${timeLabel(o.job.ends_at)}`:""}</p>}
        {o.job?.rate&&<p className="text-sm">{o.job.rate}</p>}
        {o.job?.details&&<p className="text-sm whitespace-pre-wrap break-words">{o.job.details}</p>}

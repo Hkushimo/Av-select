@@ -2,6 +2,7 @@
 import {FormEvent,useState} from "react";
 import {useRouter} from "next/navigation";
 import {browserDb} from "@/lib/supabase";
+import SignalFlowEditor,{type FlowConnection} from "./signal-flow";
 
 function localIso(value:string){
  const d=new Date(value);
@@ -11,7 +12,8 @@ function localIso(value:string){
 export default function JobCreate(){
  const router=useRouter();
  const [expanded,setExpanded]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState("");
- const [title,setTitle]=useState(""),[venue,setVenue]=useState(""),[starts,setStarts]=useState(""),[ends,setEnds]=useState("");
+ const [title,setTitle]=useState(""),[venue,setVenue]=useState(""),[address,setAddress]=useState(""),[starts,setStarts]=useState(""),[ends,setEnds]=useState("");
+ const [signalFlow,setSignalFlow]=useState<FlowConnection[]>([]);
  const [rate,setRate]=useState(""),[details,setDetails]=useState(""),[status,setStatus]=useState<"draft"|"open">("draft");
  async function submit(event:FormEvent){
   event.preventDefault();setError("");setBusy(true);
@@ -25,7 +27,7 @@ export default function JobCreate(){
    const {data:profile}=await db.from("profiles").select("role").eq("id",user.id).maybeSingle();
    if(profile?.role!=="admin")throw new Error("Only administrators can create jobs.");
    const {data:created,error:insertError}=await db.from("jobs").insert({
-    title:title.trim(),venue:venue.trim(),starts_at:from,ends_at:to,
+    title:title.trim(),venue:venue.trim(),address:address.trim(),signal_flow:signalFlow,starts_at:from,ends_at:to,
     rate:rate.trim(),details:details.trim(),status,created_by:user.id
    }).select("id").single();
    if(insertError)throw insertError;
@@ -41,6 +43,7 @@ export default function JobCreate(){
   {expanded&&<form onSubmit={submit} className="space-y-4 border-t border-slate-700 px-4 py-5">
    <label className="block"><span className="label">Job / show title *</span><input required maxLength={160} placeholder="Annual sales conference — General Session" value={title} onChange={e=>setTitle(e.target.value)}/></label>
    <label className="block"><span className="label">Venue / location</span><input maxLength={250} placeholder="Boston Convention & Exhibition Center" value={venue} onChange={e=>setVenue(e.target.value)}/></label>
+   <label className="block"><span className="label">Venue address</span><input maxLength={500} autoComplete="street-address" placeholder="Street address, city, state, ZIP" value={address} onChange={e=>setAddress(e.target.value)}/></label>
    <div className="grid sm:grid-cols-2 gap-3">
     <label className="block"><span className="label">Start date & time *</span><input required type="datetime-local" value={starts} onChange={e=>setStarts(e.target.value)}/></label>
     <label className="block"><span className="label">End date & time</span><input type="datetime-local" value={ends} onChange={e=>setEnds(e.target.value)}/></label>
@@ -48,6 +51,7 @@ export default function JobCreate(){
    <p className="muted text-xs">Times are entered in your device's local time zone.</p>
    <label className="block"><span className="label">Rate / pay details</span><input maxLength={160} placeholder="e.g. $600/day, 10-hour minimum" value={rate} onChange={e=>setRate(e.target.value)}/></label>
    <label className="block"><span className="label">Call details / notes</span><textarea rows={4} maxLength={5000} placeholder="Load-in, parking, dress code, gear and contact notes" value={details} onChange={e=>setDetails(e.target.value)}/></label>
+   <SignalFlowEditor value={signalFlow} onChange={setSignalFlow} disabled={busy}/>
    <label className="block"><span className="label">Initial status</span><select value={status} onChange={e=>setStatus(e.target.value as "draft"|"open")}>
     <option value="draft">Draft — plan staffing</option><option value="open">Open — ready to offer</option>
    </select></label>
