@@ -2,6 +2,7 @@ import Link from "next/link";
 import {notFound,redirect} from "next/navigation";
 import {currentRole} from "@/lib/server";
 import ManageJob from "../manage-job";
+import DeleteJob from "../delete-job";
 import Breadcrumbs from "../../breadcrumbs";
 
 type Props={params:Promise<{id:string}>};
@@ -36,5 +37,6 @@ export default async function JobDetails({params}:Props){
   </section>
   <ManageJob jobId={job.id} initialStatus={status}
     startsAt={job.starts_at} endsAt={job.ends_at} technicians={technicians||[]} ratings={ratings||[]} offers={offers||[]} requirements={requirements||[]}/>
+  <DeleteJob jobId={job.id} title={job.title} offerCount={offers?.length||0}/>
  </main>;
 }
