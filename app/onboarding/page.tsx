@@ -1,5 +1,5 @@
-import Breadcrumbs from "@/app/admin/breadcrumbs";
-"use client";import {useEffect,useState} from "react";import {browserDb} from "@/lib/supabase";import {useRouter} from "next/navigation";import {formatPhone} from "@/lib/phone";
+"use client";
+import Breadcrumbs from "@/app/admin/breadcrumbs";import {useEffect,useState} from "react";import {browserDb} from "@/lib/supabase";import {useRouter} from "next/navigation";import {formatPhone} from "@/lib/phone";
 const ROLE_GROUPS=[
 {group:"Audio",items:["A1 — Audio Engineer (General Session)","A1 — Audio Engineer (Breakout)","A2 — Audio Technician","RF / Wireless Microphone Technician","Audio Playback Operator","Audio Assist / A3"]},
 {group:"Video & Projection",items:["V1 — Lead Video Engineer","V2 — Video Technician / Engineer","Video Projectionist","LED Wall Technician","LED Processor / Video Wall Engineer","Video Switcher Operator (E2 / Spyder / Analog Way)","Camera Operator","PTZ / Robotic Camera Operator","Camera Shader / CCU Operator","Graphics Operator","Video Playback Operator","PowerPoint / Presentation Operator","Teleprompter Operator"]},
