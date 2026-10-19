@@ -3,6 +3,7 @@ import {FormEvent,useState} from "react";
 import {useRouter} from "next/navigation";
 import {browserDb} from "@/lib/supabase";
 import DepartmentFlowEditor,{type DepartmentFlow} from "./department-flow";
+import type {RateBasis} from "@/lib/invoicing";
 
 function localIso(value:string){
  const d=new Date(value);
@@ -14,7 +15,7 @@ export default function JobCreate(){
  const [expanded,setExpanded]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState("");
  const [title,setTitle]=useState(""),[venue,setVenue]=useState(""),[address,setAddress]=useState(""),[starts,setStarts]=useState(""),[ends,setEnds]=useState("");
  const [flows,setFlows]=useState<DepartmentFlow[]>([]);
- const [rate,setRate]=useState(""),[details,setDetails]=useState(""),[status,setStatus]=useState<"draft"|"open">("draft");
+ const [rate,setRate]=useState(""),[rateBasis,setRateBasis]=useState<RateBasis>("hourly"),[details,setDetails]=useState(""),[status,setStatus]=useState<"draft"|"open">("draft");
  async function submit(event:FormEvent){
   event.preventDefault();setError("");setBusy(true);
   try{
@@ -28,7 +29,7 @@ export default function JobCreate(){
    if(profile?.role!=="admin")throw new Error("Only administrators can create jobs.");
    const {data:created,error:insertError}=await db.from("jobs").insert({
     title:title.trim(),venue:venue.trim(),address:address.trim(),signal_flow:flows,starts_at:from,ends_at:to,
-    rate:rate.trim(),details:details.trim(),status,created_by:user.id
+    rate:rate.trim(),rate_basis:rateBasis,details:details.trim(),status,created_by:user.id
    }).select("id").single();
    if(insertError)throw insertError;
    router.push("/admin/jobs/"+created.id);
@@ -49,6 +50,13 @@ export default function JobCreate(){
     <label className="block"><span className="label">End date & time</span><input type="datetime-local" value={ends} onChange={e=>setEnds(e.target.value)}/></label>
    </div>
    <p className="muted text-xs">Times are entered in your device's local time zone.</p>
+   <label className="block"><span className="label">Pay structure *</span>
+    <select value={rateBasis} onChange={e=>setRateBasis(e.target.value as RateBasis)}>
+     <option value="hourly">Hourly — actual hours worked</option>
+     <option value="day">Day rate — includes 10 hours, 1.5× overtime afterward</option>
+    </select>
+   </label>
+   <p className="muted text-xs">Choose the billing method for this job. Set each technician's agreed amount when sending offers.</p>
    <label className="block"><span className="label">General pay notes (optional)</span><input maxLength={160} placeholder="e.g. 10-hour minimum; individual rates set with offers" value={rate} onChange={e=>setRate(e.target.value)}/></label>
    <label className="block"><span className="label">Call details / notes</span><textarea rows={4} maxLength={5000} placeholder="Load-in, parking, dress code, gear and contact notes" value={details} onChange={e=>setDetails(e.target.value)}/></label>
    <details className="rounded-xl border border-slate-700 px-3 py-3"><summary className="cursor-pointer text-sm font-semibold">Department signal flows (optional)</summary><div className="pt-3"><DepartmentFlowEditor value={flows} onChange={setFlows} disabled={busy}/></div></details>

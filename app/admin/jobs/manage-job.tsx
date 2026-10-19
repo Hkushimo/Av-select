@@ -4,16 +4,17 @@ import {useRouter} from "next/navigation";
 import {browserDb} from "@/lib/supabase";
 import {rosterMatch, type RosterTech, type RosterRating} from "../roster-filters";
 import {US_STATES,locationText,stateFromLegacy} from "@/lib/us-location";
+import type {RateBasis} from "@/lib/invoicing";
 
 type JobStatus="draft"|"open"|"closed";
 type Tech=RosterTech;
 type Offer={id:string;technician_id:string;status:string;offer_position:string;offer_rate:string};
 type Requirement={skill:string;min_level:number;required:boolean};
-export default function ManageJob({jobId,initialStatus,startsAt,endsAt,technicians,ratings,offers,requirements,mode}:{
- jobId:string;initialStatus:JobStatus;startsAt:string;endsAt:string|null;technicians:Tech[];ratings:RosterRating[];offers:Offer[];requirements:Requirement[];mode:"setup"|"staffing";
+export default function ManageJob({jobId,initialStatus,rateBasis,startsAt,endsAt,technicians,ratings,offers,requirements,mode}:{
+ jobId:string;initialStatus:JobStatus;rateBasis:RateBasis;startsAt:string;endsAt:string|null;technicians:Tech[];ratings:RosterRating[];offers:Offer[];requirements:Requirement[];mode:"setup"|"staffing";
 }){
  const router=useRouter();
- const [status,setStatus]=useState<JobStatus>(initialStatus),[busy,setBusy]=useState(false);
+ const [status,setStatus]=useState<JobStatus>(initialStatus),[payBasis,setPayBasis]=useState<RateBasis>(rateBasis),[busy,setBusy]=useState(false);
  const [selected,setSelected]=useState<string[]>([]),[offerDetails,setOfferDetails]=useState<Record<string,{position:string;rate:string}>>({}),[error,setError]=useState(""),[notice,setNotice]=useState("");
  const [skill,setSkill]=useState(""),[level,setLevel]=useState(3),[required,setRequired]=useState(true);
  const [existingOffers,setExistingOffers]=useState(offers);
@@ -34,6 +35,14 @@ export default function ManageJob({jobId,initialStatus,startsAt,endsAt,technicia
   setBusy(true);setError("");setNotice("");
   const {error}=await browserDb().from("jobs").update({status:next}).eq("id",jobId);
   if(error)setError(error.message);else{setStatus(next);setNotice("Job status updated.");router.refresh()}
+  setBusy(false);
+ }
+ async function savePayBasis(){
+  if(existingOffers.some(o=>o.status!=="cancelled")){setError("Release all offers before changing this job's pay structure.");return;}
+  setBusy(true);setError("");setNotice("");
+  const {error}=await browserDb().from("jobs").update({rate_basis:payBasis}).eq("id",jobId);
+  if(error)setError(error.message);
+  else{setNotice("Job pay structure saved.");router.refresh();}
   setBusy(false);
  }
  async function saveDates(){
@@ -79,8 +88,11 @@ export default function ManageJob({jobId,initialStatus,startsAt,endsAt,technicia
  }
  async function sendOffers(){
   if(!selected.length||status!=="open")return;
-  const payload=selected.map(id=>({job_id:jobId,technician_id:id,status:"pending",offer_position:(offerDetails[id]?.position||"").trim(),offer_rate:(offerDetails[id]?.rate||"").trim()}));
-  if(payload.some(o=>!o.offer_position||!o.offer_rate)){setError("Choose a position and enter a rate for every selected technician.");return}
+  const proposed=selected.map(id=>({id,position:(offerDetails[id]?.position||"").trim(),amount:Number(offerDetails[id]?.rate||"")}));
+  if(proposed.some(o=>!o.position||!Number.isFinite(o.amount)||o.amount<=0||o.amount>100000||Math.abs(o.amount*100-Math.round(o.amount*100))>0.000001)){
+   setError("Choose a position and enter a valid agreed amount for every selected technician.");return;
+  }
+  const payload=proposed.map(o=>({job_id:jobId,technician_id:o.id,status:"pending",offer_position:o.position,offer_rate:"$"+o.amount.toFixed(2)+(payBasis==="day"?"/day":"/hr")}));
   setBusy(true);setError("");setNotice("");
   const {data,error}=await browserDb().from("job_offers").insert(payload).select("id,technician_id,status,offer_position,offer_rate");
   if(error)setError(error.message);
@@ -106,6 +118,18 @@ export default function ManageJob({jobId,initialStatus,startsAt,endsAt,technicia
     {(["draft","open","closed"] as JobStatus[]).map(s=><button type="button" key={s} disabled={busy} onClick={()=>changeStatus(s)}
       className={"pill capitalize "+(status===s?"bg-blue-600 border-blue-500":"")}>{s}</button>)}
    </div>
+  </section>
+  <section className="panel !p-4 sm:!p-5 space-y-3">
+   <h2 className="font-semibold text-lg">Pay structure</h2>
+   {existingOffers.some(o=>o.status!=="cancelled")?
+    <p className="text-sm text-slate-200">{rateBasis==="day"?"Day rate · 10 hours included · 1.5× overtime after 10":"Hourly · actual hours worked"} <span className="muted text-xs">· Locked once crew offers are sent</span></p>:
+    <div className="space-y-2">
+     <select aria-label="Job pay structure" value={payBasis} disabled={busy} onChange={e=>setPayBasis(e.target.value as RateBasis)}>
+      <option value="hourly">Hourly — actual hours worked</option>
+      <option value="day">Day rate — 10-hour base + 1.5× overtime</option>
+     </select>
+     <button type="button" className="pill text-blue-300" disabled={busy||payBasis===rateBasis} onClick={savePayBasis}>{busy?"Saving…":"Save pay structure"}</button>
+    </div>}
   </section>
   <details className="panel !p-4 sm:!p-5 group" id="job-schedule">
    <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden flex flex-wrap items-center justify-between gap-3">
@@ -175,7 +199,7 @@ export default function ManageJob({jobId,initialStatus,startsAt,endsAt,technicia
     <span className="text-blue-300 text-sm hidden group-open:inline">Close</span>
    </summary>
    <div className="space-y-3 pt-4">
-   <p className="muted text-xs">Select technicians, then set each person’s position and pay. Offers are not confirmed bookings.</p>
+   <p className="muted text-xs">Select technicians, then set each person’s position and {payBasis==="day"?"10-hour day":"hourly"} rate. {payBasis==="day"?"Overtime after 10 hours is 1.5× the base hourly equivalent.":"Hourly invoices use actual hours worked."} Offers are not confirmed bookings.</p>
    {status!=="open"&&<p className="text-amber-200 text-sm">Set job status to Open to send offers.</p>}
    <div className="space-y-2 border border-slate-700 rounded-xl p-3">
     <input type="search" aria-label="Search candidates" placeholder="Search names, city, specialties…" value={search} onChange={e=>setSearch(e.target.value)}/>
@@ -201,7 +225,7 @@ export default function ManageJob({jobId,initialStatus,startsAt,endsAt,technicia
       <label className="block"><span className="label">Offered position *</span><select value={offerDetails[t.user_id]?.position||""} onChange={e=>setOfferDetails(prev=>({...prev,[t.user_id]:{position:e.target.value,rate:prev[t.user_id]?.rate||""}}))}>
        <option value="">Choose a position</option>{(t.roles||[]).map(role=><option key={role} value={role}>{role}</option>)}<option value="Other / special assignment">Other / special assignment</option>
       </select></label>
-      <label className="block"><span className="label">Offered rate *</span><input maxLength={160} placeholder="e.g. $50/hr or $600/day" value={offerDetails[t.user_id]?.rate||""} onChange={e=>setOfferDetails(prev=>({...prev,[t.user_id]:{position:prev[t.user_id]?.position||"",rate:e.target.value}}))}/></label>
+      <label className="block"><span className="label">Agreed {payBasis==="day"?"day":"hourly"} rate (USD) *</span><input type="number" min="0.01" max="100000" step="0.01" inputMode="decimal" placeholder={payBasis==="day"?"e.g. 600.00":"e.g. 50.00"} value={offerDetails[t.user_id]?.rate||""} onChange={e=>setOfferDetails(prev=>({...prev,[t.user_id]:{position:prev[t.user_id]?.position||"",rate:e.target.value}}))}/></label>
      </div>}
     </div>)}</div>}
    <button type="button" className="primary w-full" disabled={busy||status!=="open"||!selected.length} onClick={sendOffers}>

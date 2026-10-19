@@ -12,9 +12,9 @@ export default async function Billing(){
  if(!user)redirect("/login");
  if(role!=="technician")redirect("/");
  const {data,error}=await db.from("technician_invoices")
-  .select("id,invoice_number,job_title,job_position,bill_to,hours,hourly_rate,total,issued_on,due_on,created_at")
+  .select("id,invoice_number,job_title,job_position,bill_to,hours,hourly_rate,total,billed_total,issued_on,due_on,created_at")
   .eq("technician_id",user.id).order("created_at",{ascending:false});
- type Summary=Pick<InvoiceRow,"id"|"invoice_number"|"job_title"|"job_position"|"bill_to"|"total"|"issued_on"|"due_on">;
+ type Summary=Pick<InvoiceRow,"id"|"invoice_number"|"job_title"|"job_position"|"bill_to"|"total"|"billed_total"|"issued_on"|"due_on">;
  const invoices=(data||[]) as Summary[];
  return <main className="mx-auto max-w-3xl px-4 py-6 space-y-5">
   <Breadcrumbs items={[{label:"Dashboard",href:"/dashboard"},{label:"Billing"}]}/>
@@ -34,7 +34,7 @@ export default async function Billing(){
         <p className="muted text-xs mt-1 truncate">{invoice.bill_to}{invoice.job_position?" · "+invoice.job_position:""}</p>
        </div>
        <div className="shrink-0 flex items-center gap-2">
-        <span className="text-green-300 font-semibold text-sm">{currency(Number(invoice.total))}</span>
+        <span className="text-green-300 font-semibold text-sm">{currency(Number(invoice.billed_total??invoice.total))}</span>
         <AppIcon name="chevron-right" className="text-blue-300"/>
        </div>
       </Link>)}

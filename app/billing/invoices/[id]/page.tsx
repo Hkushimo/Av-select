@@ -2,7 +2,7 @@ import Link from "next/link";
 import {notFound,redirect} from "next/navigation";
 import Breadcrumbs from "@/app/admin/breadcrumbs";
 import {currentRole} from "@/lib/server";
-import {currency,dateOnly,invoiceLabel,type InvoiceRow} from "@/lib/invoicing";
+import {currency,dateOnly,invoiceLabel,calculateInvoiceDays,type RateBasis,type InvoiceRow} from "@/lib/invoicing";
 import PrintInvoice from "../../print-button";
 
 export const dynamic="force-dynamic";
@@ -17,6 +17,10 @@ export default async function InvoiceDetails({params}:Props){
  if(error)throw new Error("Unable to load invoice.");
  if(!data)notFound();
  const invoice=data as InvoiceRow;
+ const basis:RateBasis=invoice.billing_basis==="day"?"day":"hourly";
+ const itemized=(invoice.billing_basis==="day"||invoice.billing_basis==="hourly")&&Array.isArray(invoice.work_days)&&invoice.work_days.length>0&&Number(invoice.agreed_rate)>0;
+ const breakdown=itemized?calculateInvoiceDays(basis,Number(invoice.agreed_rate),invoice.work_days||[]):null;
+ const total=Number(invoice.billed_total??invoice.total);
  const workDate=new Date(invoice.job_starts_at).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});
  return <main className="invoice-page mx-auto max-w-3xl px-4 py-6 space-y-5">
   <div className="invoice-chrome space-y-4">
@@ -53,25 +57,48 @@ export default async function InvoiceDetails({params}:Props){
     <p className="font-semibold">{invoice.job_title}</p>
     {invoice.job_position&&<p>{invoice.job_position}</p>}
     <p className="text-slate-600">{invoice.job_venue||"Venue not specified"} · {workDate}</p>
+    {itemized&&<p className="text-xs text-slate-500 mt-1">{basis==="day"?"Day rate · 10 hours included · overtime at 1.5× after 10 billable hours":"Hourly rate · actual billable hours"}</p>}
     {invoice.job_address&&<p className="text-slate-600 break-words">{invoice.job_address}</p>}
    </div>
    <div className="overflow-x-auto">
     <table className="w-full text-sm border-collapse">
      <thead><tr className="border-b-2 border-slate-900 text-left">
-      <th className="py-3 pr-2">Description</th><th className="py-3 px-2 text-right">Hours</th>
+      <th className="py-3 pr-2">Work performed</th><th className="py-3 px-2 text-right">Quantity</th>
       <th className="py-3 px-2 text-right">Rate</th><th className="py-3 pl-2 text-right">Amount</th>
      </tr></thead>
-     <tbody><tr className="border-b border-slate-200">
-      <td className="py-4 pr-2 break-words">{invoice.job_position||"AV technician services"}</td>
-      <td className="py-4 px-2 text-right">{Number(invoice.hours).toFixed(2)}</td>
-      <td className="py-4 px-2 text-right">{currency(Number(invoice.hourly_rate))}</td>
-      <td className="py-4 pl-2 text-right font-semibold">{currency(Number(invoice.total))}</td>
-     </tr></tbody>
+     <tbody>
+      {breakdown?breakdown.charges.map(day=><tr key={day.date} className="border-b border-slate-200">
+       <td colSpan={4} className="!p-0">
+        <table className="w-full text-sm table-fixed"><tbody>
+         <tr>
+          <td className="py-3 pr-2 break-words w-[43%]">{dateOnly(day.date)}<span className="block text-xs text-slate-500">{basis==="day"?"Day rate · "+day.hours.toFixed(2)+" entered hrs"+(day.lunchDeducted?" · 1h lunch deducted":""):invoice.job_position||"AV services"}</span></td>
+          <td className="py-3 px-2 text-right w-[16%]">{basis==="day"?"1 day":day.hours.toFixed(2)+" hrs"}</td>
+          <td className="py-3 px-2 text-right w-[20%]">{currency(Number(invoice.agreed_rate))}/{basis==="day"?"day":"hr"}</td>
+          <td className="py-3 pl-2 text-right font-semibold w-[21%]">{currency(day.regular)}</td>
+         </tr>
+         {basis==="hourly"&&day.lunchDeducted>0&&<tr className="text-slate-600">
+          <td colSpan={4} className="pb-2 text-xs">Lunch taken · 1 hour deducted from {day.hours.toFixed(2)} entered hours</td>
+         </tr>}
+         {basis==="day"&&day.otHours>0&&<tr className="text-slate-600">
+          <td className="pb-3 pr-2">Overtime after 10h <span className="block text-xs text-slate-500">1.5× hourly equivalent</span></td>
+          <td className="pb-3 px-2 text-right">{day.otHours.toFixed(2)} hrs</td>
+          <td className="pb-3 px-2 text-right">{currency(Number(invoice.agreed_rate)/10*1.5)}/hr</td>
+          <td className="pb-3 pl-2 text-right font-semibold">{currency(day.overtime)}</td>
+         </tr>}
+        </tbody></table>
+       </td>
+      </tr>):<tr className="border-b border-slate-200">
+       <td className="py-4 pr-2 break-words">{invoice.job_position||"AV technician services"}</td>
+       <td className="py-4 px-2 text-right">{Number(invoice.hours).toFixed(2)} hrs</td>
+       <td className="py-4 px-2 text-right">{currency(Number(invoice.hourly_rate))}/hr</td>
+       <td className="py-4 pl-2 text-right font-semibold">{currency(total)}</td>
+      </tr>}
+     </tbody>
     </table>
    </div>
    <div className="flex justify-end">
     <div className="min-w-40 flex items-center justify-between gap-4 border-t-2 border-slate-900 pt-3">
-     <span className="font-semibold">Total due</span><span className="font-bold text-xl">{currency(Number(invoice.total))}</span>
+     <span className="font-semibold">Total due</span><span className="font-bold text-xl">{currency(total)}</span>
     </div>
    </div>
    {invoice.notes&&<div className="text-sm border-t border-slate-200 pt-5"><p className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">Notes</p><p className="whitespace-pre-wrap break-words">{invoice.notes}</p></div>}
