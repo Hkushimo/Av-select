@@ -58,7 +58,7 @@ export default function AccountNav(){
     <img src="/av-select-logo.png" alt="AV Select" width={150} height={50} className="h-9 w-auto max-w-[140px] object-contain"/>
    </Link>
    <div className="hidden sm:flex items-center gap-2">
-    {email?<>{isTech&&<><Link className="pill" href="/dashboard">Dashboard</Link><JobActivityBadge role="technician" count={unread}/><Link className="pill" href="/profile">My profile</Link></>}
+    {email?<>{isTech&&<><Link className="pill" href="/dashboard">Dashboard</Link><JobActivityBadge role="technician" count={unread}/><Link className="pill" href="/billing">Billing</Link><Link className="pill" href="/profile">My profile</Link></>}
      {isAdmin&&<><Link className="pill" href="/admin">Dashboard</Link><Link className="pill" href="/admin/jobs">Jobs</Link><JobActivityBadge role="admin" count={unread}/></>}
      <button type="button" className="pill" onClick={logout}>Log out</button></>:
      <Link className="pill" href="/login">Sign in</Link>}
@@ -86,6 +86,8 @@ export default function AccountNav(){
        <span className="flex-1">{activityLabel}</span>
        {unread>0&&<span className="rounded-full bg-red-600 px-2 py-0.5 min-w-6 text-center text-xs font-bold text-white">{unread>99?"99+":unread}</span>}
       </Link>}
+     {isTech&&<Link href="/billing" onClick={()=>setOpen(false)}
+       className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm hover:bg-slate-700/60"><AppIcon name="wallet" className="text-blue-300"/> Billing</Link>}
      {isTech&&<Link href="/profile" onClick={()=>setOpen(false)}
        className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm hover:bg-slate-700/60"><AppIcon name="user" className="text-blue-300"/> My profile</Link>}
      <div className="my-1 border-t border-slate-700"/>

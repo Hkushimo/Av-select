@@ -1,32 +1,34 @@
 "use client";
 import {useMemo,useState} from "react";
+import Link from "next/link";
+import {finishedAt} from "@/lib/invoicing";
 import MarkActivitySeen from "@/app/mark-activity-seen";
 import {OfferActions} from "./responses";
 import AppIcon from "@/app/app-icon";
 import {FlowTabs,type DepartmentFlow} from "@/app/admin/jobs/department-flow";
 
 type Job={title:string;venue:string;address?:string;signal_flow?:DepartmentFlow[];starts_at:string;ends_at:string|null;rate:string;details:string;status:string};
-export type ScheduleOffer={id:string;status:string;offer_position:string;offer_rate:string;job:Job|null};
+export type ScheduleOffer={id:string;status:string;offer_position:string;offer_rate:string;invoice_id:string|null;job:Job|null};
 const dayKey=(date:Date)=>[date.getFullYear(),String(date.getMonth()+1).padStart(2,"0"),String(date.getDate()).padStart(2,"0")].join("-");
 const dateLabel=(iso:string)=>new Date(iso).toLocaleString("en-US",{dateStyle:"medium",timeStyle:"short"});
 const timeLabel=(iso:string)=>new Date(iso).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"});
 
-function OfferCard({offer}:{offer:ScheduleOffer}){
+function OfferCard({offer,archived=false}:{offer:ScheduleOffer;archived?:boolean}){
  const job=offer.job;
  const booked=offer.status==="confirmed",accepted=offer.status==="accepted";
- const statusText=booked?"Booked":accepted?"Accepted":"Pending";
+ const statusText=archived?(booked?"Completed":"Past offer"):booked?"Booked":accepted?"Accepted":"Pending";
  const start=job?.starts_at?new Date(job.starts_at):null;
  const end=job?.ends_at?new Date(job.ends_at):null;
  const date=(d:Date)=>d.toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"});
  const time=(d:Date)=>d.toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"});
  const pay=offer.offer_rate||job?.rate||"";
- return <article className="panel !p-4 sm:!p-5 space-y-4">
+ return <article className={"panel !p-4 sm:!p-5 space-y-4 "+(archived?"!bg-[#101722] !border-slate-800 text-slate-400":"")}>
   <div className="flex items-start justify-between gap-3">
    <div className="min-w-0">
     <h3 className="text-xl font-bold leading-snug break-words">{job?.title||"Job"}</h3>
     <p className="muted text-sm mt-1">{job?.venue||"Venue TBD"}</p>
    </div>
-   <span className={"shrink-0 rounded-full border px-2.5 py-1 text-xs font-semibold "+(booked?"border-green-600/50 bg-green-500/10 text-green-300":accepted?"border-blue-500/50 bg-blue-500/10 text-blue-300":"border-amber-500/50 bg-amber-500/10 text-amber-200")}>{statusText}</span>
+   <span className={"shrink-0 rounded-full border px-2.5 py-1 text-xs font-semibold "+(archived?"border-slate-700 bg-slate-800 text-slate-400":booked?"border-green-600/50 bg-green-500/10 text-green-300":accepted?"border-blue-500/50 bg-blue-500/10 text-blue-300":"border-amber-500/50 bg-amber-500/10 text-amber-200")}>{statusText}</span>
   </div>
   <div className="rounded-xl border border-slate-700/70 bg-slate-900/40 divide-y divide-slate-700/70">
    {offer.offer_position&&<div className="flex items-start gap-3 px-3 py-3">
@@ -41,8 +43,8 @@ function OfferCard({offer}:{offer:ScheduleOffer}){
     </div>
    </div>}
    {pay&&<div className="flex items-center justify-between gap-3 px-3 py-3">
-    <div className="flex items-center gap-3"><AppIcon name="wallet" size={18} className="text-green-300 shrink-0"/><span className="muted text-sm">{offer.offer_rate?"Your rate":"Job rate"}</span></div>
-    <span className="text-green-300 font-bold text-base text-right break-words">{pay}</span>
+    <div className="flex items-center gap-3"><AppIcon name="wallet" size={18} className={archived?"text-slate-400 shrink-0":"text-green-300 shrink-0"}/><span className="muted text-sm">{offer.offer_rate?"Your rate":"Job rate"}</span></div>
+    <span className={(archived?"text-slate-300":"text-green-300")+" font-bold text-base text-right break-words"}>{pay}</span>
    </div>}
    {job?.address&&<a href={"https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(job.address)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 px-3 py-3 text-blue-300 hover:bg-slate-800/40">
     <AppIcon name="map-pin" size={18} className="shrink-0"/>
@@ -61,7 +63,10 @@ function OfferCard({offer}:{offer:ScheduleOffer}){
     {!!job?.signal_flow?.length&&<div className="space-y-2"><p className="label">Equipment & signal flow</p><FlowTabs connections={job.signal_flow||[]}/></div>}
    </div>
   </details>}
-  {offer.status==="pending"&&<OfferActions id={offer.id}/>}
+  {offer.status==="pending"&&!archived&&<OfferActions id={offer.id}/>}
+  {booked&&archived&&<Link href={offer.invoice_id?"/billing/invoices/"+offer.invoice_id:"/billing/create/"+offer.id} className="inline-flex items-center justify-center gap-2 w-full rounded-xl border border-blue-500/50 bg-blue-500/10 text-blue-200 px-4 py-3 text-sm font-semibold hover:bg-blue-500/20">
+   <AppIcon name="wallet" size={17}/>{offer.invoice_id?"View invoice":"Create invoice"}
+  </Link>}
   {accepted&&<p className="text-blue-300 text-xs">Awaiting admin confirmation · Not yet booked</p>}
  </article>;
 }
@@ -72,8 +77,12 @@ export default function ScheduleTabs({offers,userId}:{offers:ScheduleOffer[];use
  const [month,setMonth]=useState(()=>new Date(today.getFullYear(),today.getMonth(),1));
  const [selectedDay,setSelectedDay]=useState(()=>dayKey(today));
  const accepted=useMemo(()=>offers.filter(o=>(o.status==="accepted"||o.status==="confirmed")&&o.job?.starts_at).sort((a,b)=>new Date(a.job!.starts_at).getTime()-new Date(b.job!.starts_at).getTime()),[offers]);
- const pending=offers.filter(o=>o.status==="pending");
- const other=offers.filter(o=>o.status==="accepted"||o.status==="confirmed");
+ const [now]=useState(()=>Date.now());
+ const past=offers.filter(o=>o.job&&finishedAt(o.job)<=now)
+  .sort((a,b)=>finishedAt(b.job!)-finishedAt(a.job!));
+ const active=offers.filter(o=>!o.job||finishedAt(o.job)>now);
+ const pending=active.filter(o=>o.status==="pending");
+ const other=active.filter(o=>o.status==="accepted"||o.status==="confirmed");
  const byDay=useMemo(()=>{
   const map=new Map<string,ScheduleOffer[]>();
   for(const offer of accepted){
@@ -114,7 +123,17 @@ export default function ScheduleTabs({offers,userId}:{offers:ScheduleOffer[];use
     <MarkActivitySeen userId={userId} kind="offers"/>
     {pending.length>0&&<section className="space-y-3"><h2 className="font-semibold text-lg">New opportunities <span className="muted text-sm">({pending.length})</span></h2>{pending.map(o=><OfferCard key={o.id} offer={o}/>)}</section>}
     {other.length>0&&<section className="space-y-3"><h2 className="font-semibold text-lg">Accepted & booked jobs <span className="muted text-sm">({other.length})</span></h2>{other.map(o=><OfferCard key={o.id} offer={o}/>)}</section>}
-    {!pending.length&&!other.length&&<div className="panel muted text-sm">No job offers right now. New opportunities will appear here when an admin sends them.</div>}
+    {!pending.length&&!other.length&&<div className="panel muted text-sm">No active offers or bookings. New jobs will appear here when your admin sends them.</div>}
+    {past.length>0&&<details className="rounded-2xl border border-slate-800 bg-[#101722] group">
+     <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden px-4 py-4 flex items-center justify-between gap-2">
+      <span className="font-semibold text-slate-300">Past jobs <span className="text-slate-500 font-normal">({past.length})</span></span>
+      <span className="text-xs text-slate-400 group-open:hidden">Show ↓</span><span className="text-xs text-slate-400 hidden group-open:inline">Hide ↑</span>
+     </summary>
+     <div className="border-t border-slate-800 px-3 pb-3 pt-3 space-y-3">
+      <p className="text-xs text-slate-500 px-1">Past jobs are kept for your records. Invoices are available for confirmed, finished bookings.</p>
+      {past.map(o=><OfferCard key={o.id} offer={o} archived/>)}
+     </div>
+    </details>}
    </div>:<div role="tabpanel" className="space-y-4">
     <div className="flex items-center justify-between flex-wrap gap-x-4 gap-y-2">
      <p className="muted text-xs">Accepted shifts are tentative until confirmed.</p>
@@ -157,6 +176,7 @@ export default function ScheduleTabs({offers,userId}:{offers:ScheduleOffer[];use
        {o.offer_position&&<p className="text-sm font-semibold">{o.offer_position}</p>}
        {(o.offer_rate||o.job?.rate)&&<p className="text-sm inline-flex items-center gap-2"><AppIcon name="wallet" size={16} className="text-green-300"/><span>{o.offer_rate||o.job?.rate}</span></p>}
        {o.job?.details&&<p className="text-sm whitespace-pre-wrap break-words">{o.job.details}</p>}
+       {o.status==="confirmed"&&o.job&&finishedAt(o.job)<=now&&<Link className="inline-flex items-center gap-2 text-blue-300 text-sm font-semibold py-2" href={o.invoice_id?"/billing/invoices/"+o.invoice_id:"/billing/create/"+o.id}><AppIcon name="wallet" size={16}/>{o.invoice_id?"View invoice":"Create invoice"} →</Link>}
        <p className={o.status==="confirmed"?"text-xs text-green-300":"text-xs text-blue-300"}>{o.status==="confirmed"?"Booking confirmed":"Awaiting staffing confirmation"}</p>
       </article>)}
     </section>

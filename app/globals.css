@@ -3,3 +3,13 @@
 /* Let Android draw the dark app background beneath its gesture-navigation area. */
 html,body{width:100%;min-height:100%;background-color:#090d17}
 body{min-height:100dvh;box-sizing:border-box;padding-bottom:env(safe-area-inset-bottom,0px)}
+
+/* Printable billing documents: clean white PDF on mobile and desktop. */
+@media print {
+ @page{size:auto;margin:14mm}
+ html,body{background:#fff!important;color:#0f172a!important;min-height:0!important;padding:0!important}
+ nav[aria-label="Account"],.invoice-chrome{display:none!important}
+ .invoice-page{max-width:none!important;width:100%!important;margin:0!important;padding:0!important}
+ .invoice-sheet{background:#fff!important;color:#0f172a!important;box-shadow:none!important;border-radius:0!important;padding:0!important;break-inside:avoid}
+ .invoice-sheet *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
