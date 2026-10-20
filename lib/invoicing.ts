@@ -5,7 +5,7 @@ export type InvoiceRow={
  job_title:string;job_venue:string;job_address:string;
  job_starts_at:string;job_ends_at:string|null;job_position:string;original_rate:string;
  hours:number;hourly_rate:number;total:number;
- billing_basis?:"hourly"|"day"|"legacy";work_days?:InvoiceWorkDay[];agreed_rate?:number|null;billed_total?:number|null;
+ billing_basis?:"hourly"|"day"|"legacy";overtime_policy?:"legacy"|"after_10_1_5";work_days?:InvoiceWorkDay[];agreed_rate?:number|null;billed_total?:number|null;
  issued_on:string;due_on:string;notes:string;created_at:string;
 };
 export function finishedAt(job:{starts_at:string;ends_at:string|null}){
@@ -57,18 +57,19 @@ export function workDatesForJob(startsAt:string,endsAt:string|null){
  }
  return days;
 }
-export type DayCharge={date:string;hours:number;timeIn?:string;timeOut?:string;lunchTaken:boolean;lunchDeducted:number;billableHours:number;regular:number;otHours:number;overtime:number;total:number};
-export function calculateInvoiceDays(basis:RateBasis,rate:number,days:InvoiceWorkDay[]){
+export type DayCharge={date:string;hours:number;timeIn?:string;timeOut?:string;lunchTaken:boolean;lunchDeducted:number;billableHours:number;regularHours:number;regular:number;otHours:number;overtime:number;total:number};
+export function calculateInvoiceDays(basis:RateBasis,rate:number,days:InvoiceWorkDay[],hourlyOvertime=true){
  const cents=Math.round(rate*100);
  const charges:DayCharge[]=days.filter(day=>day.hours>0).map(day=>{
   // Lunch applies only to days exceeding 10 actual hours, regardless of pay basis.
   const lunchTaken=day.lunch_taken===true&&day.hours>DAY_INCLUDED_HOURS;
   const lunchDeducted=lunchTaken?1:0;
   const billableHours=Math.max(0,day.hours-lunchDeducted);
-  const otHours=basis==="day"?Math.max(0,billableHours-DAY_INCLUDED_HOURS):0;
-  const regular=basis==="day"?cents:Math.round(billableHours*cents);
-  const overtime=basis==="day"?Math.round(otHours*cents*DAY_OT_MULTIPLIER/DAY_INCLUDED_HOURS):0;
-  return {date:day.date,hours:day.hours,timeIn:day.time_in,timeOut:day.time_out,lunchTaken,lunchDeducted,billableHours,regular:regular/100,otHours,overtime:overtime/100,total:(regular+overtime)/100};
+  const otHours=(basis==="day"||hourlyOvertime)?Math.max(0,billableHours-DAY_INCLUDED_HOURS):0;
+  const regularHours=basis==="hourly"?(hourlyOvertime?Math.min(billableHours,DAY_INCLUDED_HOURS):billableHours):Math.min(billableHours,DAY_INCLUDED_HOURS);
+  const regular=basis==="day"?cents:Math.round(regularHours*cents);
+  const overtime=basis==="day"?Math.round(otHours*cents*DAY_OT_MULTIPLIER/DAY_INCLUDED_HOURS):Math.round(otHours*cents*DAY_OT_MULTIPLIER);
+  return {date:day.date,hours:day.hours,timeIn:day.time_in,timeOut:day.time_out,lunchTaken,lunchDeducted,billableHours,regularHours,regular:regular/100,otHours,overtime:overtime/100,total:(regular+overtime)/100};
  });
  return {charges,total:charges.reduce((sum,day)=>sum+Math.round(day.total*100),0)/100,
   hours:charges.reduce((sum,day)=>sum+day.billableHours,0),

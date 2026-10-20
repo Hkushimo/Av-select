@@ -19,7 +19,7 @@ export default async function InvoiceDetails({params}:Props){
  const invoice=data as InvoiceRow;
  const basis:RateBasis=invoice.billing_basis==="day"?"day":"hourly";
  const itemized=(invoice.billing_basis==="day"||invoice.billing_basis==="hourly")&&Array.isArray(invoice.work_days)&&invoice.work_days.length>0&&Number(invoice.agreed_rate)>0;
- const breakdown=itemized?calculateInvoiceDays(basis,Number(invoice.agreed_rate),invoice.work_days||[]):null;
+ const breakdown=itemized?calculateInvoiceDays(basis,Number(invoice.agreed_rate),invoice.work_days||[],invoice.overtime_policy==="after_10_1_5"):null;
  const total=Number(invoice.billed_total??invoice.total);
  const workDate=new Date(invoice.job_starts_at).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});
  return <main className="invoice-page mx-auto max-w-3xl px-4 py-6 space-y-5">
@@ -57,7 +57,7 @@ export default async function InvoiceDetails({params}:Props){
     <p className="font-semibold">{invoice.job_title}</p>
     {invoice.job_position&&<p>{invoice.job_position}</p>}
     <p className="text-slate-600">{invoice.job_venue||"Venue not specified"} · {workDate}</p>
-    {itemized&&<p className="text-xs text-slate-500 mt-1">{basis==="day"?"Day rate · 10 hours included · overtime at 1.5× after 10 billable hours":"Hourly rate · actual billable hours"}</p>}
+    {itemized&&<p className="text-xs text-slate-500 mt-1">{basis==="day"?"Day rate · 10 hours included · overtime at 1.5× after 10 billable hours":invoice.overtime_policy==="after_10_1_5"?"Hourly rate · 1.5× overtime after 10 billable hours":"Hourly rate · actual billable hours"}</p>}
     {invoice.job_address&&<p className="text-slate-600 break-words">{invoice.job_address}</p>}
    </div>
    <div className="overflow-x-auto">
@@ -72,17 +72,17 @@ export default async function InvoiceDetails({params}:Props){
         <table className="w-full text-sm table-fixed"><tbody>
          <tr>
           <td className="py-3 pr-2 break-words w-[43%]">{dateOnly(day.date)}<span className="block text-xs text-slate-500">{[day.timeIn&&day.timeOut?day.timeIn+" – "+day.timeOut+(day.timeOut<day.timeIn?" (+1 day)":""):null,day.hours.toFixed(2)+"h worked",day.lunchDeducted?"1h lunch deducted":null].filter(Boolean).join(" · ")}</span></td>
-          <td className="py-3 px-2 text-right w-[16%]">{basis==="day"?"1 day":day.billableHours.toFixed(2)+" hrs"}</td>
+          <td className="py-3 px-2 text-right w-[16%]">{basis==="day"?"1 day":day.regularHours.toFixed(2)+" hrs"}</td>
           <td className="py-3 px-2 text-right w-[20%]">{currency(Number(invoice.agreed_rate))}/{basis==="day"?"day":"hr"}</td>
           <td className="py-3 pl-2 text-right font-semibold w-[21%]">{currency(day.regular)}</td>
          </tr>
          {basis==="hourly"&&day.lunchDeducted>0&&<tr className="text-slate-600">
           <td colSpan={4} className="pb-2 text-xs">Lunch taken · 1 hour deducted from {day.hours.toFixed(2)} entered hours</td>
          </tr>}
-         {basis==="day"&&day.otHours>0&&<tr className="text-slate-600">
-          <td className="pb-3 pr-2">Overtime after 10h <span className="block text-xs text-slate-500">1.5× hourly equivalent</span></td>
+         {day.otHours>0&&<tr className="text-slate-600">
+          <td className="pb-3 pr-2">Overtime after 10h <span className="block text-xs text-slate-500">{basis==="day"?"1.5× day-rate hourly equivalent":"1.5× agreed hourly rate"}</span></td>
           <td className="pb-3 px-2 text-right">{day.otHours.toFixed(2)} hrs</td>
-          <td className="pb-3 px-2 text-right">{currency(Number(invoice.agreed_rate)/10*1.5)}/hr</td>
+          <td className="pb-3 px-2 text-right">{currency(basis==="day"?Number(invoice.agreed_rate)/10*1.5:Number(invoice.agreed_rate)*1.5)}/hr</td>
           <td className="pb-3 pl-2 text-right font-semibold">{currency(day.overtime)}</td>
          </tr>}
         </tbody></table>

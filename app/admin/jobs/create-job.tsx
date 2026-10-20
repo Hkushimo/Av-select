@@ -52,7 +52,7 @@ export default function JobCreate(){
    <p className="muted text-xs">Times are entered in your device's local time zone.</p>
    <label className="block"><span className="label">Pay structure *</span>
     <select value={rateBasis} onChange={e=>setRateBasis(e.target.value as RateBasis)}>
-     <option value="hourly">Hourly — actual hours worked</option>
+     <option value="hourly">Hourly — 1.5× OT after 10 hours</option>
      <option value="day">Day rate — includes 10 hours, 1.5× overtime afterward</option>
     </select>
    </label>

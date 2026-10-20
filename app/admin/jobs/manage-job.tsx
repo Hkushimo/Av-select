@@ -122,10 +122,10 @@ export default function ManageJob({jobId,initialStatus,rateBasis,startsAt,endsAt
   <section className="panel !p-4 sm:!p-5 space-y-3">
    <h2 className="font-semibold text-lg">Pay structure</h2>
    {existingOffers.some(o=>o.status!=="cancelled")?
-    <p className="text-sm text-slate-200">{rateBasis==="day"?"Day rate · 10 hours included · 1.5× overtime after 10":"Hourly · actual hours worked"} <span className="muted text-xs">· Locked once crew offers are sent</span></p>:
+    <p className="text-sm text-slate-200">{rateBasis==="day"?"Day rate · 10 hours included · 1.5× overtime after 10":"Hourly · actual hours · 1.5× OT after 10 hours"} <span className="muted text-xs">· Locked once crew offers are sent</span></p>:
     <div className="space-y-2">
      <select aria-label="Job pay structure" value={payBasis} disabled={busy} onChange={e=>setPayBasis(e.target.value as RateBasis)}>
-      <option value="hourly">Hourly — actual hours worked</option>
+      <option value="hourly">Hourly — 1.5× OT after 10 hours</option>
       <option value="day">Day rate — 10-hour base + 1.5× overtime</option>
      </select>
      <button type="button" className="pill text-blue-300" disabled={busy||payBasis===rateBasis} onClick={savePayBasis}>{busy?"Saving…":"Save pay structure"}</button>
@@ -199,7 +199,7 @@ export default function ManageJob({jobId,initialStatus,rateBasis,startsAt,endsAt
     <span className="text-blue-300 text-sm hidden group-open:inline">Close</span>
    </summary>
    <div className="space-y-3 pt-4">
-   <p className="muted text-xs">Select technicians, then set each person’s position and {payBasis==="day"?"10-hour day":"hourly"} rate. {payBasis==="day"?"Overtime after 10 hours is 1.5× the base hourly equivalent.":"Hourly invoices use actual hours worked."} Offers are not confirmed bookings.</p>
+   <p className="muted text-xs">Select technicians, then set each person’s position and {payBasis==="day"?"10-hour day":"hourly"} rate. {payBasis==="day"?"Overtime after 10 hours is 1.5× the base hourly equivalent.":"Hourly invoices bill actual hours, with 1.5× OT after 10 billable hours."} Offers are not confirmed bookings.</p>
    {status!=="open"&&<p className="text-amber-200 text-sm">Set job status to Open to send offers.</p>}
    <div className="space-y-2 border border-slate-700 rounded-xl p-3">
     <input type="search" aria-label="Search candidates" placeholder="Search names, city, specialties…" value={search} onChange={e=>setSearch(e.target.value)}/>

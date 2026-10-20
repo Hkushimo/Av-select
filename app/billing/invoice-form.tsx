@@ -60,7 +60,7 @@ export default function InvoiceForm({offerId,job,position,originalRate,rateBasis
     job_title:job.title,job_venue:job.venue||"",job_address:job.address||"",
     job_starts_at:job.starts_at,job_ends_at:job.ends_at,job_position:position,original_rate:originalRate,
     hours:calculation.hours,hourly_rate:rateBasis==="day"?Math.round(agreedRate/10*100)/100:agreedRate,
-    billing_basis:rateBasis,work_days:workDays,agreed_rate:agreedRate,
+    billing_basis:rateBasis,overtime_policy:"after_10_1_5",work_days:workDays,agreed_rate:agreedRate,
     issued_on:issuedOn,due_on:dueOn,notes:notes.trim()
    }).select("id").single();
    if(insertError){
@@ -101,7 +101,7 @@ export default function InvoiceForm({offerId,job,position,originalRate,rateBasis
    <p className="muted text-xs">Check Lunch taken when applicable. One hour is deducted only if a shift exceeds 10 hours.</p>
    <p className="muted text-xs">{rateBasis==="day"?
     `Each worked day is billed at the full 10-hour day rate. After ${DAY_INCLUDED_HOURS} hours on a single day, overtime is ${DAY_OT_MULTIPLIER}× the hourly equivalent. Enter clock-in and clock-out times; hours and OT are calculated automatically.`:
-    "Hourly job: actual hours × the agreed hourly rate. No day-rate minimum or automatic day-rate overtime."}</p>
+    `Hourly job: no day minimum. The first ${DAY_INCLUDED_HOURS} billable hours per day pay the agreed hourly rate; additional hours pay ${DAY_OT_MULTIPLIER}×.`}</p>
    <div className="space-y-2">
     {entries.map((entry,index)=>{
      const line=calculation.charges.find(day=>day.date===entry.date);
@@ -132,7 +132,7 @@ export default function InvoiceForm({offerId,job,position,originalRate,rateBasis
       {line&&<div className="border-t border-slate-800 pt-2 space-y-1">
        <p className="muted text-xs">{rateBasis==="day"?
         (line.otHours>0?`Day rate + ${line.otHours.toFixed(2)} OT hrs`:"Day rate · up to 10 hrs"):
-        `${line.billableHours.toFixed(2)} billable hrs × ${currency(agreedRate)}`}{line.lunchDeducted>0?" · 1h lunch deducted":""}</p>
+        (line.otHours>0?`${line.regularHours.toFixed(2)} regular hrs + ${line.otHours.toFixed(2)} OT hrs (1.5×)`:`${line.billableHours.toFixed(2)} billable hrs × ${currency(agreedRate)}`)}{line.lunchDeducted>0?" · 1h lunch deducted":""}</p>
        <p className="text-base font-semibold text-slate-100">{currency(line.total)}</p>
       </div>}
      </div>;
@@ -147,7 +147,7 @@ export default function InvoiceForm({offerId,job,position,originalRate,rateBasis
      <span className="muted">Worked <strong className="text-slate-100 ml-1">{calculation.actualHours.toFixed(2)}h</strong></span>
      {calculation.lunchHours>0&&<span className="muted">Lunch <strong className="text-slate-100 ml-1">−{calculation.lunchHours.toFixed(2)}h</strong></span>}
      <span className="muted">Billable <strong className="text-slate-100 ml-1">{calculation.hours.toFixed(2)}h</strong></span>
-     {rateBasis==="day"&&<span className="muted">OT <strong className="text-slate-100 ml-1">{calculation.charges.reduce((sum,day)=>sum+day.otHours,0).toFixed(2)}h</strong></span>}
+     <span className="muted">OT <strong className="text-slate-100 ml-1">{calculation.charges.reduce((sum,day)=>sum+day.otHours,0).toFixed(2)}h</strong></span>
     </div>
     <div className="border-t border-slate-700 pt-3">
      <p className="muted text-xs">Invoice total</p>
