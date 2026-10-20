@@ -18,7 +18,7 @@ export default async function Billing(){
  const invoices=(data||[]) as Summary[];
  return <main className="mx-auto max-w-3xl px-4 py-6 space-y-5">
   <Breadcrumbs items={[{label:"Dashboard",href:"/dashboard"},{label:"Billing"}]}/>
-  <PageHeading eyebrow="Technician account" title="Billing" description="Create invoices from finished bookings and keep your records in one place."/>
+  <PageHeading eyebrow="Technician account" title="Billing" description="Submit invoices from completed bookings and keep your records in one place."/>
   <section className="panel !p-4 sm:!p-5 space-y-3">
    <div className="flex items-center justify-between gap-3">
     <h2 className="text-lg font-semibold">Your invoices</h2>
@@ -41,7 +41,7 @@ export default async function Billing(){
     </div>:
     <div className="rounded-xl border border-slate-700 bg-slate-900/40 p-4 space-y-2">
      <p className="text-sm font-medium">No invoices yet</p>
-     <p className="muted text-sm">After a confirmed job finishes, open My Schedule → Past jobs → Create invoice.</p>
+     <p className="muted text-sm">After a confirmed job finishes, open My Schedule → Past jobs → Create invoice. Submitted invoices are visible to AV Select admins.</p>
      <Link href="/offers" className="inline-flex items-center gap-2 text-blue-300 text-sm font-semibold">My Schedule →</Link>
     </div>}
   </section>

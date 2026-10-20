@@ -157,8 +157,8 @@ export default function InvoiceForm({offerId,job,position,originalRate,rateBasis
    <label className="block"><span className="label">Invoice notes (optional)</span>
     <textarea rows={2} maxLength={1500} placeholder="Reference, payment instructions, or agreed terms" value={notes} onChange={e=>setNotes(e.target.value)} disabled={busy}/></label>
   </section>
-  <p className="muted text-xs">The rate comes from your confirmed job offer and cannot be changed here. This creates one invoice per booking and does not send it or collect payment.</p>
+  <p className="muted text-xs">The rate comes from your confirmed job offer and cannot be changed here. Submitting makes this invoice visible to AV Select admins. It does not email the client or collect payment.</p>
   {error&&<p className="text-red-300 text-sm" role="alert">{error}</p>}
-  <button className="primary w-full" type="submit" disabled={busy||!validWork||!billTo.trim()||!dueOn}>{busy?"Creating invoice…":"Save invoice →"}</button>
+  <button className="primary w-full" type="submit" disabled={busy||!validWork||!billTo.trim()||!dueOn}>{busy?"Submitting invoice…":"Submit invoice →"}</button>
  </form>;
 }

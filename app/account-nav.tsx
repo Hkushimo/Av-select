@@ -59,7 +59,7 @@ export default function AccountNav(){
    </Link>
    <div className="hidden sm:flex items-center gap-2">
     {email?<>{isTech&&<><Link className="pill" href="/dashboard">Dashboard</Link><JobActivityBadge role="technician" count={unread}/><Link className="pill" href="/billing">Billing</Link><Link className="pill" href="/profile">My profile</Link></>}
-     {isAdmin&&<><Link className="pill" href="/admin">Dashboard</Link><Link className="pill" href="/admin/jobs">Jobs</Link><JobActivityBadge role="admin" count={unread}/></>}
+     {isAdmin&&<><Link className="pill" href="/admin">Dashboard</Link><Link className="pill" href="/admin/jobs">Jobs</Link><Link className="pill" href="/admin/invoices">Invoices</Link><JobActivityBadge role="admin" count={unread}/></>}
      <button type="button" className="pill" onClick={logout}>Log out</button></>:
      <Link className="pill" href="/login">Sign in</Link>}
    </div>
@@ -79,6 +79,10 @@ export default function AccountNav(){
      {isAdmin&&<Link href="/admin/jobs" onClick={()=>setOpen(false)}
        className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm hover:bg-slate-700/60">
        <AppIcon name="jobs" className="text-blue-300"/> Jobs
+      </Link>}
+     {isAdmin&&<Link href="/admin/invoices" onClick={()=>setOpen(false)}
+       className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm hover:bg-slate-700/60">
+       <AppIcon name="wallet" className="text-blue-300"/> Invoices
       </Link>}
      {(isTech||isAdmin)&&<Link href={activityHref} onClick={()=>setOpen(false)}
        className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm hover:bg-slate-700/60">

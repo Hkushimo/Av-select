@@ -7,6 +7,7 @@ import JobProductionEditor,{JobSignalFlowSection} from "../production-editor";
 import type {DepartmentFlow} from "../department-flow";
 import Breadcrumbs from "../../breadcrumbs";
 import type {RateBasis} from "@/lib/invoicing";
+import TechInvoices from "../tech-invoices";
 
 type Props={params:Promise<{id:string}>};
 export default async function JobDetails({params}:Props){
@@ -23,6 +24,9 @@ export default async function JobDetails({params}:Props){
  ]);
  if(error)throw new Error("Unable to load job.");
  if(!job)notFound();
+ const invoiceResult=await db.from("technician_invoices")
+   .select("id,offer_id,invoice_number,from_name,issued_on,total,billed_total")
+   .eq("job_id",id);
  const status=job.status==="open"||job.status==="closed"?job.status:"draft";
  return <main className="mx-auto max-w-3xl px-4 py-6 space-y-5">
   <Breadcrumbs items={[{label:"Dashboard",href:"/admin"},{label:"Jobs",href:"/admin/jobs"},{label:job.title}]}/>
@@ -31,6 +35,7 @@ export default async function JobDetails({params}:Props){
    <a className="pill text-blue-300" href="#job-schedule">Schedule</a>
    <a className="pill text-blue-300" href="#job-production">Production</a>
    <a className="pill text-blue-300" href="#job-staffing">Crew & offers</a>
+   <a className="pill text-blue-300" href="#job-invoices">Tech invoices</a>
   </nav>
   <ManageJob mode="setup" jobId={job.id} initialStatus={status} rateBasis={(job.rate_basis==="day"?"day":"hourly") as RateBasis}
     startsAt={job.starts_at} endsAt={job.ends_at} technicians={technicians||[]} ratings={ratings||[]} offers={offers||[]} requirements={requirements||[]}/>
@@ -45,6 +50,8 @@ export default async function JobDetails({params}:Props){
   </div>
   <ManageJob mode="staffing" jobId={job.id} initialStatus={status} rateBasis={(job.rate_basis==="day"?"day":"hourly") as RateBasis}
     startsAt={job.starts_at} endsAt={job.ends_at} technicians={technicians||[]} ratings={ratings||[]} offers={offers||[]} requirements={requirements||[]}/>
+  <TechInvoices offers={offers||[]} technicians={technicians||[]}
+   invoices={invoiceResult.data||[]} loadError={!!invoiceResult.error}/>
   <DeleteJob jobId={job.id} title={job.title} offerCount={offers?.length||0}/>
  </main>;
 }

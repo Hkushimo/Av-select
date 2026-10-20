@@ -10,10 +10,13 @@ type Props={params:Promise<{id:string}>};
 export default async function InvoiceDetails({params}:Props){
  const {db,user,role}=await currentRole();
  if(!user)redirect("/login");
- if(role!=="technician")redirect("/");
+ if(role!=="technician"&&role!=="admin")redirect("/");
  const {id}=await params;
  if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id))notFound();
- const {data,error}=await db.from("technician_invoices").select("*").eq("id",id).eq("technician_id",user.id).maybeSingle();
+ // Technicians can open only their own invoices. Admins are authorized by RLS SELECT policy.
+ let query=db.from("technician_invoices").select("*").eq("id",id);
+ if(role==="technician")query=query.eq("technician_id",user.id);
+ const {data,error}=await query.maybeSingle();
  if(error)throw new Error("Unable to load invoice.");
  if(!data)notFound();
  const invoice=data as InvoiceRow;
@@ -24,7 +27,9 @@ export default async function InvoiceDetails({params}:Props){
  const workDate=new Date(invoice.job_starts_at).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});
  return <main className="invoice-page mx-auto max-w-3xl px-4 py-6 space-y-5">
   <div className="invoice-chrome space-y-4">
-   <Breadcrumbs items={[{label:"Dashboard",href:"/dashboard"},{label:"Billing",href:"/billing"},{label:invoiceLabel(invoice.invoice_number)}]}/>
+   <Breadcrumbs items={role==="admin"?
+    [{label:"Dashboard",href:"/admin"},{label:"Invoices",href:"/admin/invoices"},{label:invoiceLabel(invoice.invoice_number)}]:
+    [{label:"Dashboard",href:"/dashboard"},{label:"Billing",href:"/billing"},{label:invoiceLabel(invoice.invoice_number)}]}/>
    <div className="flex flex-wrap items-center justify-between gap-3">
     <div><p className="text-blue-400 text-xs font-bold tracking-widest uppercase">Technician billing</p><h1 className="text-2xl font-bold mt-1">{invoiceLabel(invoice.invoice_number)}</h1></div>
     <PrintInvoice/>
@@ -105,6 +110,6 @@ export default async function InvoiceDetails({params}:Props){
    <p className="text-slate-400 text-xs border-t border-slate-200 pt-4">Prepared by {invoice.from_name}. Payment is arranged directly with the billed client.</p>
   </article>
   <p className="invoice-chrome muted text-xs">Use “Print / Save PDF” to download a copy or print it, then send the file to your client. AV Select does not send invoices automatically.</p>
-  <Link className="invoice-chrome inline-block text-blue-300 text-sm" href="/billing">← All invoices</Link>
+  <Link className="invoice-chrome inline-block text-blue-300 text-sm" href={role==="admin"?"/admin/invoices":"/billing"}>← All invoices</Link>
  </main>;
 }
