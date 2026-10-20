@@ -6,6 +6,8 @@ import ProfileSelections from "./profile-selections";
 import {browserDb} from "@/lib/supabase";
 import {formatPhone} from "@/lib/phone";
 import {US_STATES,stateFromLegacy} from "@/lib/us-location";
+import {optimizeAvatarImage,avatarExtension,optimizedAvatarPath} from "@/lib/avatar-images";
+import {avatarSignedUrl,invalidateAvatarUrl} from "@/lib/avatar-urls";
 type Rating={skill:string;level:number};
 type Profile={full_name:string;phone:string;city:string;state:string;travel:string;other_skills:string;roles:string[];equipment:string[];avatar_path:string|null};
 export default function TechnicianProfile(){
@@ -23,8 +25,8 @@ export default function TechnicianProfile(){
   if(!data){location.replace("/onboarding");return}const homeLocation=data.state?{city:data.city||"",state:data.state}:stateFromLegacy(data.city||"");setProfile({...data,city:homeLocation.city,state:homeLocation.state,phone:formatPhone(data.phone||"")});
   const {data:myRatings,error:myRatingsError}=await db.from("skill_ratings").select("skill,level").eq("technician_id",user.id).order("skill");
   if(active){if(myRatingsError)setRatingsError("Could not load official proficiency ratings.");else setRatings(myRatings||[])}
-  if(data.avatar_path){const {data:signed}=await db.storage.from("technician-avatars").createSignedUrl(data.avatar_path,600);
-   if(active)setImage(signed?.signedUrl||"")}
+  if(data.avatar_path){const url=await avatarSignedUrl(data.avatar_path).catch(()=>"");
+   if(active)setImage(url)}
  }void load();return()=>{active=false}},[]);
  function field(name:keyof Profile,value:string){setProfile(p=>p?{...p,[name]:value}:p)}
  async function save(){
@@ -36,22 +38,56 @@ export default function TechnicianProfile(){
   }catch(e){setError(e instanceof Error?e.message:"Could not save profile.")}
   finally{setBusy(false)}
  }
+ // Never upload full-size originals. The photo is resized and compressed
+ // locally first, then stored under a new immutable key for browser caching.
+ async function replaceAvatar(source:Blob){
+  if(!profile||!id)throw new Error("Profile not loaded.");
+  const optimized=await optimizeAvatarImage(source);
+  const db=browserDb();
+  const path=id+"/avatar-"+crypto.randomUUID()+"."+avatarExtension(optimized);
+  const bucket=db.storage.from("technician-avatars");
+  const {error:uploaded}=await bucket.upload(path,optimized,{
+   contentType:optimized.type,cacheControl:"3600",upsert:false
+  });
+  if(uploaded)throw uploaded;
+  const {error:updated}=await db.from("technicians").update({avatar_path:path}).eq("user_id",id);
+  if(updated){
+   await bucket.remove([path]).catch(()=>{});
+   throw updated;
+  }
+  const previous=profile.avatar_path;
+  if(previous){
+   invalidateAvatarUrl(previous);
+   // The database points at the new photo already; an old file cleanup
+   // failure must not make the successful replacement appear unsuccessful.
+   await bucket.remove([previous]).catch(()=>{});
+  }
+  setProfile(current=>current?{...current,avatar_path:path}:current);
+  const url=await avatarSignedUrl(path).catch(()=>"");
+  setImage(url);
+  setStatus(url?"Photo optimized and saved.":"Photo saved. Reload to preview it.");
+ }
  async function upload(e:ChangeEvent<HTMLInputElement>){
-  const file=e.target.files?.[0];e.target.value="";if(!file||!id||!profile)return;
+  const file=e.target.files?.[0];e.target.value="";
+  if(!file||!id||!profile)return;
   setError("");setStatus("");
-  if(!["image/jpeg","image/png","image/webp"].includes(file.type)||file.size>5242880){setError("Use JPG, PNG or WebP under 5 MB.");return}
+  if(!["image/jpeg","image/png","image/webp"].includes(file.type)||file.size>5242880){
+   setError("Use JPG, PNG or WebP under 5 MB.");return;
+  }
   setBusy(true);
+  try{await replaceAvatar(file)}
+  catch(err){setError(err instanceof Error?err.message:"Photo upload failed.")}
+  finally{setBusy(false)}
+ }
+ async function optimizeCurrentPhoto(){
+  if(!profile?.avatar_path||!id||busy)return;
+  setBusy(true);setError("");setStatus("");
   try{
-   const db=browserDb();const ext=file.type==="image/png"?"png":file.type==="image/webp"?"webp":"jpg";
-   const path=id+"/"+crypto.randomUUID()+"."+ext;
-   const {error:uploaded}=await db.storage.from("technician-avatars").upload(path,file,{contentType:file.type});
-   if(uploaded)throw uploaded;
-   const {error:updated}=await db.from("technicians").update({avatar_path:path}).eq("user_id",id);
-   if(updated){await db.storage.from("technician-avatars").remove([path]);throw updated}
-   if(profile.avatar_path)await db.storage.from("technician-avatars").remove([profile.avatar_path]);
-   const {data:signed}=await db.storage.from("technician-avatars").createSignedUrl(path,600);
-   setProfile({...profile,avatar_path:path});setImage(signed?.signedUrl||"");setStatus("Photo updated.");
-  }catch(err){setError(err instanceof Error?err.message:"Photo upload failed.")}
+   const url=await avatarSignedUrl(profile.avatar_path);
+   const response=await fetch(url);
+   if(!response.ok)throw new Error("Unable to download your current photo. Please try uploading it again.");
+   await replaceAvatar(await response.blob());
+  }catch(err){setError(err instanceof Error?err.message:"Could not optimize current photo.")}
   finally{setBusy(false)}
  }
  async function removePhoto(){
@@ -61,6 +97,7 @@ export default function TechnicianProfile(){
    const {error}=await db.from("technicians").update({avatar_path:null}).eq("user_id",id);
    if(error)throw error;
    await db.storage.from("technician-avatars").remove([old]);
+   invalidateAvatarUrl(old);
    setProfile({...profile,avatar_path:null});setImage("");setStatus("Photo removed.");
   }catch(e){setError(e instanceof Error?e.message:"Could not remove photo.")}
   finally{setBusy(false)}
@@ -70,9 +107,10 @@ export default function TechnicianProfile(){
   <PageHeading eyebrow="Technician account" title="My profile"/>
   {!profile?<div className="panel muted">{error||"Loading profile…"}</div>:<>
    <section className="panel space-y-4"><h2 className="text-lg font-semibold">Profile photo <span className="muted text-sm font-normal">(optional)</span></h2>
-    {image?<img alt="Your profile" src={image} className="h-28 w-28 rounded-full object-cover border border-slate-700"/>:
+    {image?<img alt="Your profile" src={image} width={112} height={112} decoding="async" className="h-28 w-28 rounded-full object-cover border border-slate-700"/>:
     <div className="h-28 w-28 rounded-full bg-slate-800 grid place-content-center text-4xl" aria-label="No profile photo">👤</div>}
-    <label className="block"><span className="label">Add or change photo · JPG, PNG, WebP · Max 5 MB</span><input type="file" accept="image/jpeg,image/png,image/webp" disabled={busy} onChange={upload}/></label>
+    <label className="block"><span className="label">Add or change photo · Auto-resized to 256px · JPG, PNG, WebP up to 5 MB</span><input type="file" accept="image/jpeg,image/png,image/webp" disabled={busy} onChange={upload}/></label>
+    {profile.avatar_path&&!optimizedAvatarPath(profile.avatar_path)&&<div className="rounded-xl border border-slate-700 bg-slate-900/40 px-3 py-3 space-y-2"><p className="muted text-xs">This older photo is still full-size. Optimize it once to speed up loading throughout AV Select.</p><button type="button" className="pill text-blue-300" disabled={busy} onClick={optimizeCurrentPhoto}>{busy?"Optimizing…":"Optimize current photo"}</button></div>}
     {profile.avatar_path&&<button type="button" className="pill" disabled={busy} onClick={removePhoto}>Remove photo</button>}
     <p className="muted text-xs">Photos are private to you and AV Select administrators.</p>
    </section>
