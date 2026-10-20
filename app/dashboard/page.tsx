@@ -5,6 +5,7 @@ import {redirect} from "next/navigation";
 import {currentRole} from "@/lib/server";
 import AppIcon from "@/app/app-icon";
 import {estimateOfferPayout} from "@/lib/payout-estimate";
+import {displayOfferRate} from "@/lib/invoicing";
 
 type Job={title:string;venue:string;starts_at:string;ends_at:string|null;rate:string;rate_basis:"hourly"|"day";details:string;status:string};
 export default async function TechnicianDashboard(){
@@ -52,7 +53,7 @@ export default async function TechnicianDashboard(){
     <h3 className="font-semibold text-lg">{upcoming.job.title}</h3>
     <p className="muted text-sm">{date(upcoming.job.starts_at)}{upcoming.job.ends_at?" – "+date(upcoming.job.ends_at):""}</p>
     <p className="muted text-sm">{upcoming.job.venue||"Venue TBD"}</p>
-    {(upcoming.offer_rate||upcoming.job.rate)&&<p className="text-sm muted">Your rate · {upcoming.offer_rate||upcoming.job.rate}</p>}
+    {(upcoming.offer_rate||upcoming.job.rate)&&<p className="text-sm muted">Your rate · {displayOfferRate(upcoming.offer_rate||upcoming.job.rate,upcoming.job.rate_basis==="day"?"day":"hourly")}</p>}
     {estimate&&<div className="rounded-lg border border-emerald-500/25 bg-emerald-500/10 px-3 py-3 space-y-1">
      <p className="text-xs text-emerald-200">Estimated payout</p>
      <p className="text-xl font-bold text-green-300 tabular-nums">{estimate.label}</p>

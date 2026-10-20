@@ -45,6 +45,15 @@ export function agreedRateFromLabel(label:string,basis:RateBasis):number|null{
  return Number.isFinite(amount)&&amount>0&&amount<=100000?amount:null;
 }
 
+
+/** Formats plain and labeled offer rates for technician-facing screens only. */
+export function displayOfferRate(raw:string,basis:RateBasis):string{
+ const rate=agreedRateFromLabel(raw,basis);
+ if(rate===null)return raw;
+ const amount=rate.toLocaleString("en-US",{minimumFractionDigits:0,maximumFractionDigits:2});
+ return "$"+amount+(basis==="day"?"/day":"/hr");
+}
+
 export function workDatesForJob(startsAt:string,endsAt:string|null){
  const start=new Date(startsAt),end=new Date(endsAt||startsAt);
  if(!Number.isFinite(start.getTime())||!Number.isFinite(end.getTime()))return [] as string[];

@@ -1,7 +1,7 @@
 "use client";
 import {useMemo,useState} from "react";
 import Link from "next/link";
-import {finishedAt} from "@/lib/invoicing";
+import {finishedAt,displayOfferRate} from "@/lib/invoicing";
 import {estimateOfferPayout} from "@/lib/payout-estimate";
 import MarkActivitySeen from "@/app/mark-activity-seen";
 import {OfferActions} from "./responses";
@@ -22,7 +22,8 @@ function OfferCard({offer,archived=false}:{offer:ScheduleOffer;archived?:boolean
  const end=job?.ends_at?new Date(job.ends_at):null;
  const date=(d:Date)=>d.toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"});
  const time=(d:Date)=>d.toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"});
- const pay=offer.offer_rate||job?.rate||"";
+ const rawPay=offer.offer_rate||job?.rate||"";
+ const pay=displayOfferRate(rawPay,job?.rate_basis==="day"?"day":"hourly");
  const estimate=!archived?estimateOfferPayout(job,offer.offer_rate):null;
  return <article className={"panel !p-4 sm:!p-5 space-y-4 "+(archived?"!bg-[#101722] !border-slate-800 text-slate-400":"")}>
   <div className="flex items-start justify-between gap-3">
@@ -187,7 +188,7 @@ export default function ScheduleTabs({offers,userId}:{offers:ScheduleOffer[];use
        {(o.job?.signal_flow?.length||0)>0&&<details className="rounded-lg border border-slate-700 p-3"><summary className="cursor-pointer text-sm">Your equipment & signal flow</summary><div className="mt-3"><FlowTabs connections={o.job?.signal_flow||[]}/></div></details>}
        {o.job?.starts_at&&<p className="text-sm">{dateLabel(o.job.starts_at)}{o.job.ends_at?` – ${timeLabel(o.job.ends_at)}`:""}</p>}
        {o.offer_position&&<p className="text-sm font-semibold">{o.offer_position}</p>}
-       {(o.offer_rate||o.job?.rate)&&<p className="text-sm inline-flex items-center gap-2"><AppIcon name="wallet" size={16} className="text-green-300"/><span>{o.offer_rate||o.job?.rate}</span></p>}
+       {(o.offer_rate||o.job?.rate)&&<p className="text-sm inline-flex items-center gap-2"><AppIcon name="wallet" size={16} className="text-green-300"/><span>{displayOfferRate(o.offer_rate||o.job?.rate||"",o.job?.rate_basis==="day"?"day":"hourly")}</span></p>}
        {o.job?.details&&<p className="text-sm whitespace-pre-wrap break-words">{o.job.details}</p>}
        {o.status==="confirmed"&&o.job&&finishedAt(o.job)<=now&&<Link className="inline-flex items-center gap-2 text-blue-300 text-sm font-semibold py-2" href={o.invoice_id?"/billing/invoices/"+o.invoice_id:"/billing/create/"+o.id}><AppIcon name="wallet" size={16}/>{o.invoice_id?"View invoice":"Create invoice"} →</Link>}
        <p className={o.status==="confirmed"?"text-xs text-green-300":"text-xs text-blue-300"}>{o.status==="confirmed"?"Booking confirmed":"Awaiting staffing confirmation"}</p>
