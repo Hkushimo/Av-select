@@ -27,7 +27,7 @@ update public.technician_invoices i
 
 -- Never trust a client-provided job_id: derive it from the confirmed offer.
 create or replace function public.set_technician_invoice_job()
-returns trigger language plpgsql security definer set search_path='' as $
+returns trigger language plpgsql security definer set search_path='' as $$
 declare
  v_job_id uuid;
 begin
@@ -40,7 +40,7 @@ begin
  new.job_id:=v_job_id;
  return new;
 end;
-$;
+$$;
 
 drop trigger if exists technician_invoice_job_link on public.technician_invoices;
 create trigger technician_invoice_job_link
