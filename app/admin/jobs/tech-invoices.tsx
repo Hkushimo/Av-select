@@ -37,35 +37,35 @@ export default function TechInvoices({offers,technicians,invoices,loadError}:{
     </p>:crew.length===0&&formerInvoices.length===0?<p className="muted text-sm py-2">No technicians assigned to this job yet.</p>:
     crew.map(o=>{
      const invoice=invoiceByOffer.get(o.id);
-     return <div key={o.id} className="rounded-xl border border-slate-700/70 bg-slate-900/40 px-3 py-3 flex flex-wrap items-center justify-between gap-3">
-      <div className="min-w-0 flex-1">
+     return <div key={o.id} className="rounded-xl border border-slate-700/70 bg-slate-900/40 px-3 py-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="w-full min-w-0 sm:flex-1">
        <p className="font-semibold text-sm break-words">{names.get(o.technician_id)||invoice?.from_name||"Technician"}</p>
        {o.offer_position&&<p className="muted text-xs mt-1 break-words">{o.offer_position}</p>}
       </div>
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+      <div className="flex w-full min-w-0 flex-col items-start gap-2 sm:w-auto sm:shrink-0 sm:items-end">
        {invoice?<>
-        <div className="text-right">
+        <div className="min-w-0 text-left sm:text-right">
          <p className="text-green-300 text-xs font-semibold">Submitted · {currency(Number(invoice.billed_total??invoice.total))}</p>
          <p className="muted text-xs mt-1">{invoiceLabel(invoice.invoice_number)} · {dateOnly(invoice.issued_on)}</p>
         </div>
-        <Link href={"/billing/invoices/"+invoice.id} className="inline-flex items-center rounded-lg border border-blue-500/40 px-3 py-2 text-sm font-semibold text-blue-300 hover:bg-blue-500/10">
+        <Link href={"/billing/invoices/"+invoice.id} className="inline-flex w-fit shrink-0 items-center justify-center rounded-lg border border-blue-500/40 px-3 py-2 text-sm font-semibold text-blue-300 hover:bg-blue-500/10">
          View invoice ↗
         </Link>
        </>:<span className="text-slate-400 text-xs font-medium">Not submitted</span>}
       </div>
      </div>
     })}
-   {formerInvoices.map(invoice=><div key={invoice.id} className="rounded-xl border border-slate-700/70 bg-slate-900/40 px-3 py-3 flex flex-wrap items-center justify-between gap-3">
-     <div className="min-w-0 flex-1">
+   {formerInvoices.map(invoice=><div key={invoice.id} className="rounded-xl border border-slate-700/70 bg-slate-900/40 px-3 py-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+     <div className="w-full min-w-0 sm:flex-1">
       <p className="font-semibold text-sm break-words">{invoice.from_name||"Technician"}</p>
       <p className="muted text-xs mt-1">Previously assigned · invoice retained</p>
      </div>
-     <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-      <div className="text-right">
+     <div className="flex w-full min-w-0 flex-col items-start gap-2 sm:w-auto sm:shrink-0 sm:items-end">
+      <div className="min-w-0 text-left sm:text-right">
        <p className="text-green-300 text-xs font-semibold">Submitted · {currency(Number(invoice.billed_total??invoice.total))}</p>
        <p className="muted text-xs mt-1">{invoiceLabel(invoice.invoice_number)} · {dateOnly(invoice.issued_on)}</p>
       </div>
-      <Link href={"/billing/invoices/"+invoice.id} className="inline-flex items-center rounded-lg border border-blue-500/40 px-3 py-2 text-sm font-semibold text-blue-300 hover:bg-blue-500/10">
+      <Link href={"/billing/invoices/"+invoice.id} className="inline-flex w-fit shrink-0 items-center justify-center rounded-lg border border-blue-500/40 px-3 py-2 text-sm font-semibold text-blue-300 hover:bg-blue-500/10">
        View invoice ↗
       </Link>
      </div>
