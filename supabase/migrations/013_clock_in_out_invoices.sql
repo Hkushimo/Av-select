@@ -1,7 +1,6 @@
--- AV Select 013: derive technician invoice hours from Time in / Time out.
--- Run AFTER migration 012, BEFORE deploying the updated invoice form.
--- Prior invoices remain unchanged. Overnight shifts (e.g. 22:00–06:00) are supported.
--- For new invoices the database uses the entered clock times, not client-calculated hours.
+-- AV Select 013: validated clock-in and clock-out invoicing.
+-- Run after migration 012. Safe to rerun if the prior 013 execution failed.
+-- This replaces the invoice trigger function; existing invoices are unchanged.
 
 create or replace function public.calculate_technician_invoice()
 returns trigger language plpgsql security definer set search_path='' as $$
@@ -84,100 +83,12 @@ begin
       raise exception 'Each work date must be unique';
     end if;
     v_unique_dates:=array_append(v_unique_dates,v_day->>'date');
-    -- Require paired local clock times for all newly issued invoices.
+    -- Validate local 24-hour clock times and calculate overnight shifts.
     v_time_in:=v_day->>'time_in';
     v_time_out:=v_day->>'time_out';
     if v_time_in is null or v_time_out is null
-       or v_time_in !~ '^([01][0-9]|2[0-3]):[0-5][0-9]
-
-    v_lunch_taken:=coalesce((v_day->>'lunch_taken')::boolean,false);
-    -- Exactly one hour, only when "Lunch taken" and actual hours exceed 10.
-    v_billable_hours:=v_gross_hours
-      - case when v_lunch_taken and v_gross_hours>10 then 1 else 0 end;
-
-    v_total_hours:=v_total_hours+v_billable_hours;
-    if v_basis='day' then
-      v_total:=v_total+v_rate
-        +round(greatest(v_billable_hours-10,0)*v_rate*1.5/10,2);
-    else
-      v_total:=v_total+round(v_billable_hours*v_rate,2);
-    end if;
-    v_count:=v_count+1;
-  end loop;
-  if v_count=0 or v_total_hours<=0 or v_total_hours>999 then
-    raise exception 'Invalid total billable hours';
-  end if;
-
-  -- Immutable invoice snapshot: use the authoritative offer and job, not client prices.
-  new.from_name:=v_tech.full_name;
-  new.from_email:=coalesce(v_email,'');
-  new.from_phone:=v_tech.phone;
-  new.from_location:=concat_ws(', ',nullif(v_tech.city,''),nullif(v_tech.state,''));
-  new.job_title:=v_job.title;
-  new.job_venue:=v_job.venue;
-  new.job_address:=v_job.address;
-  new.job_starts_at:=v_job.starts_at;
-  new.job_ends_at:=v_job.ends_at;
-  new.job_position:=v_offer.offer_position;
-  new.original_rate:=v_label;
-  new.agreed_rate:=v_rate;
-  new.hours:=v_total_hours;
-  new.hourly_rate:=case when v_basis='day' then round(v_rate/10,2) else v_rate end;
-  new.billed_total:=v_total;
-  return new;
-end;
-$$;
-
-drop trigger if exists technician_invoice_calculation on public.technician_invoices;
-create trigger technician_invoice_calculation
-before insert on public.technician_invoices for each row
-execute function public.calculate_technician_invoice();
-
-       or v_time_out !~ '^([01][0-9]|2[0-3]):[0-5][0-9]
-
-    v_lunch_taken:=coalesce((v_day->>'lunch_taken')::boolean,false);
-    -- Exactly one hour, only when "Lunch taken" and actual hours exceed 10.
-    v_billable_hours:=v_gross_hours
-      - case when v_lunch_taken and v_gross_hours>10 then 1 else 0 end;
-
-    v_total_hours:=v_total_hours+v_billable_hours;
-    if v_basis='day' then
-      v_total:=v_total+v_rate
-        +round(greatest(v_billable_hours-10,0)*v_rate*1.5/10,2);
-    else
-      v_total:=v_total+round(v_billable_hours*v_rate,2);
-    end if;
-    v_count:=v_count+1;
-  end loop;
-  if v_count=0 or v_total_hours<=0 or v_total_hours>999 then
-    raise exception 'Invalid total billable hours';
-  end if;
-
-  -- Immutable invoice snapshot: use the authoritative offer and job, not client prices.
-  new.from_name:=v_tech.full_name;
-  new.from_email:=coalesce(v_email,'');
-  new.from_phone:=v_tech.phone;
-  new.from_location:=concat_ws(', ',nullif(v_tech.city,''),nullif(v_tech.state,''));
-  new.job_title:=v_job.title;
-  new.job_venue:=v_job.venue;
-  new.job_address:=v_job.address;
-  new.job_starts_at:=v_job.starts_at;
-  new.job_ends_at:=v_job.ends_at;
-  new.job_position:=v_offer.offer_position;
-  new.original_rate:=v_label;
-  new.agreed_rate:=v_rate;
-  new.hours:=v_total_hours;
-  new.hourly_rate:=case when v_basis='day' then round(v_rate/10,2) else v_rate end;
-  new.billed_total:=v_total;
-  return new;
-end;
-$$;
-
-drop trigger if exists technician_invoice_calculation on public.technician_invoices;
-create trigger technician_invoice_calculation
-before insert on public.technician_invoices for each row
-execute function public.calculate_technician_invoice();
- then
+       or v_time_in !~ '^([01][0-9]|2[0-3]):[0-5][0-9]$'
+       or v_time_out !~ '^([01][0-9]|2[0-3]):[0-5][0-9]$' then
       raise exception 'Enter valid Time in and Time out for each work day';
     end if;
     v_in_minutes:=split_part(v_time_in,':',1)::integer*60+split_part(v_time_in,':',2)::integer;
@@ -187,8 +98,8 @@ execute function public.calculate_technician_invoice();
       raise exception 'Time in and Time out cannot be the same';
     end if;
     v_gross_hours:=round(v_duration_minutes::numeric/60,2);
-    -- Reject client-tampered hours; only clock times determine the calculation.
-    if (v_day->>'hours')::numeric<>v_gross_hours then
+    -- Reject altered client-supplied hours.
+    if (v_day->>'hours')::numeric is distinct from v_gross_hours then
       raise exception 'Entered hours do not match the work times';
     end if;
 
