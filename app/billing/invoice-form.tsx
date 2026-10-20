@@ -115,11 +115,11 @@ export default function InvoiceForm({offerId,job,position,originalRate,rateBasis
       </div>
       <div className="grid grid-cols-2 gap-3">
        <label className="min-w-0 block"><span className="label">Time in</span>
-        <input type="time" aria-label={"Time in "+dateLabel(entry.date)} value={entry.timeIn}
-         onChange={e=>updateEntry(index,{timeIn:e.target.value})} disabled={busy} className="!min-w-0 !w-full !px-2.5 !py-2.5 text-sm"/></label>
+        <input type="time" step={60} aria-label={"Time in "+dateLabel(entry.date)} value={entry.timeIn}
+         onChange={e=>updateEntry(index,{timeIn:e.target.value})} disabled={busy} className="!min-w-0 !w-full !px-2.5 !py-2.5 !text-base"/></label>
        <label className="min-w-0 block"><span className="label">Time out</span>
-        <input type="time" aria-label={"Time out "+dateLabel(entry.date)} value={entry.timeOut}
-         onChange={e=>updateEntry(index,{timeOut:e.target.value})} disabled={busy} className="!min-w-0 !w-full !px-2.5 !py-2.5 text-sm"/></label>
+        <input type="time" step={60} aria-label={"Time out "+dateLabel(entry.date)} value={entry.timeOut}
+         onChange={e=>updateEntry(index,{timeOut:e.target.value})} disabled={busy} className="!min-w-0 !w-full !px-2.5 !py-2.5 !text-base"/></label>
       </div>
       {entry.timeIn&&entry.timeOut&&shiftHours(entry.timeIn,entry.timeOut)!==null&&
        <p className="muted text-xs">Calculated shift: {shiftHours(entry.timeIn,entry.timeOut)?.toFixed(2)} hrs

@@ -78,7 +78,7 @@ export function calculateInvoiceDays(basis:RateBasis,rate:number,days:InvoiceWor
 
 /** Work dates use local wall-clock times. When out is before in, it ends the following day. */
 export function shiftHours(timeIn:string,timeOut:string):number|null{
- const pattern=/^([01]\\d|2[0-3]):([0-5]\\d)$/;
+ const pattern=/^([01][0-9]|2[0-3]):([0-5][0-9])$/;
  const start=timeIn.match(pattern),end=timeOut.match(pattern);
  if(!start||!end)return null;
  const inMinutes=Number(start[1])*60+Number(start[2]);
