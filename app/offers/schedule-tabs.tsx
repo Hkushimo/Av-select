@@ -42,9 +42,10 @@ function OfferCard({offer,archived=false}:{offer:ScheduleOffer;archived?:boolean
      <p className="muted mt-0.5">{time(start)}{end?" – "+(start.toDateString()===end.toDateString()?time(end):date(end)+", "+time(end)):""}</p>
     </div>
    </div>}
-   {pay&&<div className="flex items-center justify-between gap-3 px-3 py-3">
-    <div className="flex items-center gap-3"><AppIcon name="wallet" size={18} className={archived?"text-slate-400 shrink-0":"text-green-300 shrink-0"}/><span className="muted text-sm">{offer.offer_rate?"Your rate":"Job rate"}</span></div>
-    <span className={(archived?"text-slate-300":"text-green-300")+" font-bold text-base text-right break-words"}>{pay}</span>
+   {pay&&<div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 px-3 py-3">
+    <AppIcon name="wallet" size={18} className={archived?"text-slate-400 shrink-0":"text-green-300 shrink-0"}/>
+    <span className="muted text-sm">{offer.offer_rate?"Your rate":"Job rate"}</span>
+    <span className={(archived?"text-slate-300":"text-green-300")+" font-bold text-base break-words"}>{pay}</span>
    </div>}
    {job?.address&&<a href={"https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(job.address)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 px-3 py-3 text-blue-300 hover:bg-slate-800/40">
     <AppIcon name="map-pin" size={18} className="shrink-0"/>

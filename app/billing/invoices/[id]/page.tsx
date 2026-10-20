@@ -71,8 +71,8 @@ export default async function InvoiceDetails({params}:Props){
        <td colSpan={4} className="!p-0">
         <table className="w-full text-sm table-fixed"><tbody>
          <tr>
-          <td className="py-3 pr-2 break-words w-[43%]">{dateOnly(day.date)}<span className="block text-xs text-slate-500">{basis==="day"?"Day rate · "+day.hours.toFixed(2)+" entered hrs"+(day.lunchDeducted?" · 1h lunch deducted":""):invoice.job_position||"AV services"}</span></td>
-          <td className="py-3 px-2 text-right w-[16%]">{basis==="day"?"1 day":day.hours.toFixed(2)+" hrs"}</td>
+          <td className="py-3 pr-2 break-words w-[43%]">{dateOnly(day.date)}<span className="block text-xs text-slate-500">{[day.timeIn&&day.timeOut?day.timeIn+" – "+day.timeOut+(day.timeOut<day.timeIn?" (+1 day)":""):null,day.hours.toFixed(2)+"h worked",day.lunchDeducted?"1h lunch deducted":null].filter(Boolean).join(" · ")}</span></td>
+          <td className="py-3 px-2 text-right w-[16%]">{basis==="day"?"1 day":day.billableHours.toFixed(2)+" hrs"}</td>
           <td className="py-3 px-2 text-right w-[20%]">{currency(Number(invoice.agreed_rate))}/{basis==="day"?"day":"hr"}</td>
           <td className="py-3 pl-2 text-right font-semibold w-[21%]">{currency(day.regular)}</td>
          </tr>

@@ -29,7 +29,7 @@ export function dateOnly(value:string){
 }
 
 export type RateBasis="hourly"|"day";
-export type InvoiceWorkDay={date:string;hours:number;lunch_taken?:boolean};
+export type InvoiceWorkDay={date:string;hours:number;lunch_taken?:boolean;time_in?:string;time_out?:string};
 export const DAY_INCLUDED_HOURS=10;
 export const DAY_OT_MULTIPLIER=1.5;
 
@@ -57,7 +57,7 @@ export function workDatesForJob(startsAt:string,endsAt:string|null){
  }
  return days;
 }
-export type DayCharge={date:string;hours:number;lunchTaken:boolean;lunchDeducted:number;billableHours:number;regular:number;otHours:number;overtime:number;total:number};
+export type DayCharge={date:string;hours:number;timeIn?:string;timeOut?:string;lunchTaken:boolean;lunchDeducted:number;billableHours:number;regular:number;otHours:number;overtime:number;total:number};
 export function calculateInvoiceDays(basis:RateBasis,rate:number,days:InvoiceWorkDay[]){
  const cents=Math.round(rate*100);
  const charges:DayCharge[]=days.filter(day=>day.hours>0).map(day=>{
@@ -68,10 +68,23 @@ export function calculateInvoiceDays(basis:RateBasis,rate:number,days:InvoiceWor
   const otHours=basis==="day"?Math.max(0,billableHours-DAY_INCLUDED_HOURS):0;
   const regular=basis==="day"?cents:Math.round(billableHours*cents);
   const overtime=basis==="day"?Math.round(otHours*cents*DAY_OT_MULTIPLIER/DAY_INCLUDED_HOURS):0;
-  return {date:day.date,hours:day.hours,lunchTaken,lunchDeducted,billableHours,regular:regular/100,otHours,overtime:overtime/100,total:(regular+overtime)/100};
+  return {date:day.date,hours:day.hours,timeIn:day.time_in,timeOut:day.time_out,lunchTaken,lunchDeducted,billableHours,regular:regular/100,otHours,overtime:overtime/100,total:(regular+overtime)/100};
  });
  return {charges,total:charges.reduce((sum,day)=>sum+Math.round(day.total*100),0)/100,
   hours:charges.reduce((sum,day)=>sum+day.billableHours,0),
   actualHours:charges.reduce((sum,day)=>sum+day.hours,0),
   lunchHours:charges.reduce((sum,day)=>sum+day.lunchDeducted,0)};
+}
+
+/** Work dates use local wall-clock times. When out is before in, it ends the following day. */
+export function shiftHours(timeIn:string,timeOut:string):number|null{
+ const pattern=/^([01]\\d|2[0-3]):([0-5]\\d)$/;
+ const start=timeIn.match(pattern),end=timeOut.match(pattern);
+ if(!start||!end)return null;
+ const inMinutes=Number(start[1])*60+Number(start[2]);
+ const outMinutes=Number(end[1])*60+Number(end[2]);
+ const minutes=(outMinutes-inMinutes+1440)%1440;
+ // Equal in/out requires clarification rather than silently assuming a 24h shift.
+ if(minutes===0)return null;
+ return Math.round(minutes/60*100)/100;
 }

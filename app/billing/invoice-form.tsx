@@ -2,34 +2,34 @@
 import {useState,type FormEvent} from "react";
 import {useRouter} from "next/navigation";
 import {browserDb} from "@/lib/supabase";
-import {currency,calculateInvoiceDays,workDatesForJob,DAY_INCLUDED_HOURS,DAY_OT_MULTIPLIER,type RateBasis,type InvoiceWorkDay} from "@/lib/invoicing";
+import {currency,calculateInvoiceDays,workDatesForJob,DAY_INCLUDED_HOURS,DAY_OT_MULTIPLIER,shiftHours,type RateBasis,type InvoiceWorkDay} from "@/lib/invoicing";
 import AppIcon from "@/app/app-icon";
 
 type JobInfo={title:string;venue:string;address:string;starts_at:string;ends_at:string|null;rate:string;rate_basis:RateBasis;status:string};
 type TechnicianInfo={name:string;email:string;phone:string;location:string};
-type DateEntry={date:string;hours:string;lunch_taken:boolean;extra:boolean};
+type DateEntry={date:string;timeIn:string;timeOut:string;lunch_taken:boolean;extra:boolean};
 function localDate(value:Date){return new Date(value.getTime()-value.getTimezoneOffset()*60000).toISOString().slice(0,10)}
 function dateLabel(date:string){return new Date(date+"T12:00:00").toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"})}
-function validHoursText(text:string){
- if(!text.trim())return true;
- const n=Number(text);
- return Number.isFinite(n)&&n>=0&&n<=24&&Math.abs(n*100-Math.round(n*100))<0.000001;
-}
 export default function InvoiceForm({offerId,job,position,originalRate,rateBasis,agreedRate,technician}:{
  offerId:string;job:JobInfo;position:string;originalRate:string;rateBasis:RateBasis;agreedRate:number;technician:TechnicianInfo;
 }){
  const router=useRouter();
  const [billTo,setBillTo]=useState("");
  const [billToAddress,setBillToAddress]=useState("");
- const [entries,setEntries]=useState<DateEntry[]>(()=>workDatesForJob(job.starts_at,job.ends_at).map(date=>({date,hours:"",lunch_taken:false,extra:false})));
+ const [entries,setEntries]=useState<DateEntry[]>(()=>workDatesForJob(job.starts_at,job.ends_at).map(date=>({date,timeIn:"",timeOut:"",lunch_taken:false,extra:false})));
  const [notes,setNotes]=useState("");
  const [issuedOn]=useState(()=>localDate(new Date()));
  const [dueOn,setDueOn]=useState(()=>{const d=new Date();d.setDate(d.getDate()+30);return localDate(d)});
  const [busy,setBusy]=useState(false),[error,setError]=useState("");
 
- const allValid=entries.every(e=>!!e.date&&validHoursText(e.hours));
- const workDays:InvoiceWorkDay[]=entries.filter(e=>e.hours.trim()!==""&&Number(e.hours)>0&&e.date)
-  .map(e=>({date:e.date,hours:Number(e.hours),lunch_taken:e.lunch_taken&&Number(e.hours)>10}));
+ const allValid=entries.every(e=>!!e.date&&(
+  (!e.timeIn&&!e.timeOut)||(!!e.timeIn&&!!e.timeOut&&shiftHours(e.timeIn,e.timeOut)!==null)
+ ));
+ const workDays:InvoiceWorkDay[]=entries.flatMap(e=>{
+  if(!e.date||!e.timeIn||!e.timeOut)return [];
+  const hours=shiftHours(e.timeIn,e.timeOut);
+  return hours===null?[]:[{date:e.date,hours,time_in:e.timeIn,time_out:e.timeOut,lunch_taken:e.lunch_taken&&hours>10}];
+ });
  const duplicateDates=new Set(entries.map(e=>e.date)).size!==entries.length;
  const calculation=calculateInvoiceDays(rateBasis,agreedRate,workDays);
  const validWork=allValid&&!duplicateDates&&workDays.length>0&&calculation.actualHours<=999;
@@ -40,12 +40,12 @@ export default function InvoiceForm({offerId,job,position,originalRate,rateBasis
  function addDay(){
   const previous=entries.at(-1)?.date||localDate(new Date());
   const next=new Date(previous+"T12:00:00");next.setDate(next.getDate()+1);
-  setEntries(items=>[...items,{date:localDate(next),hours:"",lunch_taken:false,extra:true}]);
+  setEntries(items=>[...items,{date:localDate(next),timeIn:"",timeOut:"",lunch_taken:false,extra:true}]);
  }
  async function save(event:FormEvent){
   event.preventDefault();setError("");
   if(!billTo.trim()||!technician.name.trim()||!validWork||!dueOn){
-   setError("Enter the client, hours worked on at least one day, and valid dates.");return;
+   setError("Enter the client and valid time-in/time-out on at least one day.");return;
   }
   if(dueOn<issuedOn){setError("The due date cannot be before the invoice date.");return}
   setBusy(true);
@@ -90,16 +90,17 @@ export default function InvoiceForm({offerId,job,position,originalRate,rateBasis
 
   <section className="panel !p-4 sm:!p-5 space-y-3">
    <div className="flex items-center justify-between gap-3">
-    <h2 className="font-semibold text-lg">Hours worked</h2>
+    <h2 className="font-semibold text-lg">Daily time log</h2>
     <span className="text-xs muted">{workDays.length} day{workDays.length===1?"":"s"} logged</span>
    </div>
-   <div className="rounded-xl border border-slate-700 bg-slate-900/50 p-3 flex items-center justify-between gap-3">
-    <div className="flex items-center gap-2 text-sm"><AppIcon name="wallet" size={18} className="text-green-300"/><span className="muted">Agreed {rateBasis==="day"?"day":"hourly"} rate</span></div>
-    <span className="font-bold text-green-300 text-base text-right">{currency(agreedRate)}{rateBasis==="day"?"/day":"/hr"}</span>
+   <div className="rounded-xl border border-slate-700 bg-slate-900/50 p-3 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+    <AppIcon name="wallet" size={18} className="text-green-300 shrink-0"/>
+    <span className="muted text-sm">Agreed {rateBasis==="day"?"day":"hourly"} rate</span>
+    <span className="font-bold text-green-300 text-base">{currency(agreedRate)}{rateBasis==="day"?"/day":"/hr"}</span>
    </div>
-   <p className="muted text-xs">Check Lunch taken when applicable. One hour is deducted only if the entered hours for that day exceed 10.</p>
+   <p className="muted text-xs">Check Lunch taken when applicable. One hour is deducted only if a shift exceeds 10 hours.</p>
    <p className="muted text-xs">{rateBasis==="day"?
-    `Each worked day is billed at the full 10-hour day rate. After ${DAY_INCLUDED_HOURS} hours on a single day, overtime is ${DAY_OT_MULTIPLIER}× the hourly equivalent. Enter actual hours—no need to calculate OT.`:
+    `Each worked day is billed at the full 10-hour day rate. After ${DAY_INCLUDED_HOURS} hours on a single day, overtime is ${DAY_OT_MULTIPLIER}× the hourly equivalent. Enter clock-in and clock-out times; hours and OT are calculated automatically.`:
     "Hourly job: actual hours × the agreed hourly rate. No day-rate minimum or automatic day-rate overtime."}</p>
    <div className="space-y-2">
     {entries.map((entry,index)=>{
@@ -109,41 +110,48 @@ export default function InvoiceForm({offerId,job,position,originalRate,rateBasis
        {entry.extra?<input type="date" aria-label={"Additional work date "+(index+1)}
         value={entry.date} onChange={e=>updateEntry(index,{date:e.target.value})} disabled={busy} className="!w-auto min-w-0 !py-2"/>:
         <span className="text-sm font-semibold">{dateLabel(entry.date)}</span>}
-       <div className="flex items-center gap-2">
-        <label className="sr-only" htmlFor={"invoice-hours-"+index}>Hours worked {dateLabel(entry.date)}</label>
-        <input id={"invoice-hours-"+index} type="number" inputMode="decimal" step="0.01" min="0" max="24"
-         placeholder="Hours" value={entry.hours} onChange={e=>updateEntry(index,{hours:e.target.value})}
-         disabled={busy} className="!w-24 !py-2.5 text-right" />
-        <span className="muted text-xs">hrs</span>
-        {entry.extra&&<button type="button" aria-label={"Remove extra date "+(index+1)}
-         onClick={()=>setEntries(items=>items.filter((_,i)=>i!==index))} disabled={busy} className="text-red-300 text-sm px-2">✕</button>}
-       </div>
+       {entry.extra&&<button type="button" aria-label={"Remove extra date "+(index+1)}
+        onClick={()=>setEntries(items=>items.filter((_,i)=>i!==index))} disabled={busy} className="text-red-300 text-sm px-2">✕</button>}
       </div>
+      <div className="grid grid-cols-2 gap-3">
+       <label className="min-w-0 block"><span className="label">Time in</span>
+        <input type="time" aria-label={"Time in "+dateLabel(entry.date)} value={entry.timeIn}
+         onChange={e=>updateEntry(index,{timeIn:e.target.value})} disabled={busy} className="!min-w-0 !w-full !px-2.5 !py-2.5 text-sm"/></label>
+       <label className="min-w-0 block"><span className="label">Time out</span>
+        <input type="time" aria-label={"Time out "+dateLabel(entry.date)} value={entry.timeOut}
+         onChange={e=>updateEntry(index,{timeOut:e.target.value})} disabled={busy} className="!min-w-0 !w-full !px-2.5 !py-2.5 text-sm"/></label>
+      </div>
+      {entry.timeIn&&entry.timeOut&&shiftHours(entry.timeIn,entry.timeOut)!==null&&
+       <p className="muted text-xs">Calculated shift: {shiftHours(entry.timeIn,entry.timeOut)?.toFixed(2)} hrs
+        {entry.timeOut<entry.timeIn?" · Out next day":""}</p>}
       <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
        <input type="checkbox" className="!w-auto accent-blue-500" checked={entry.lunch_taken}
         onChange={e=>updateEntry(index,{lunch_taken:e.target.checked})} disabled={busy} />
-       Lunch taken <span className="muted">{Number(entry.hours)>10?"(subtract 1 hour)":"(applies only over 10 hours)"}</span>
+       Lunch taken <span className="muted">{(shiftHours(entry.timeIn,entry.timeOut)||0)>10?"(subtract 1 hour)":"(applies only over 10 hours)"}</span>
       </label>
-      {line&&<div className="flex items-center justify-between gap-2 border-t border-slate-800 pt-2">
-       <span className="muted text-xs">{rateBasis==="day"?
+      {line&&<div className="border-t border-slate-800 pt-2 space-y-1">
+       <p className="muted text-xs">{rateBasis==="day"?
         (line.otHours>0?`Day rate + ${line.otHours.toFixed(2)} OT hrs`:"Day rate · up to 10 hrs"):
-        `${line.billableHours.toFixed(2)} billable hrs × ${currency(agreedRate)}`}{line.lunchDeducted>0?" · 1h lunch deducted":""}</span>
-       <span className="text-sm font-semibold">{currency(line.total)}</span>
+        `${line.billableHours.toFixed(2)} billable hrs × ${currency(agreedRate)}`}{line.lunchDeducted>0?" · 1h lunch deducted":""}</p>
+       <p className="text-base font-semibold text-slate-100">{currency(line.total)}</p>
       </div>}
      </div>;
     })}
    </div>
    <button type="button" className="text-blue-300 text-sm font-semibold py-1" onClick={addDay} disabled={busy||entries.length>=366}>+ Add another work day</button>
    {duplicateDates&&<p className="text-amber-200 text-xs">Each date can appear only once.</p>}
-   {!allValid&&<p className="text-amber-200 text-xs">Enter 0–24 hours with no more than two decimals for each date.</p>}
-   <div className="rounded-xl bg-slate-900/70 border border-slate-700 p-3 space-y-2">
-    <div className="flex items-center justify-between text-sm"><span className="muted">Hours entered</span><span>{calculation.actualHours.toFixed(2)}</span></div>
-    {calculation.lunchHours>0&&<div className="flex items-center justify-between text-sm"><span className="muted">Lunch deductions</span><span>−{calculation.lunchHours.toFixed(2)} hrs</span></div>}
-    <div className="flex items-center justify-between text-sm"><span className="muted">Billable hours</span><span>{calculation.hours.toFixed(2)}</span></div>
-    {rateBasis==="day"&&<div className="flex items-center justify-between text-sm"><span className="muted">OT hours</span><span>{calculation.charges.reduce((sum,day)=>sum+day.otHours,0).toFixed(2)}</span></div>}
-    <div className="flex items-center justify-between border-t border-slate-700 pt-2">
-     <span className="font-semibold text-sm">Invoice total</span>
-     <span className="text-xl font-bold text-green-300">{validWork?currency(calculation.total):"—"}</span>
+   {!allValid&&<p className="text-amber-200 text-xs">Each entered shift needs a valid Time in and Time out. Overnight shifts are supported; equal times are not.</p>}
+   <div className="rounded-xl bg-slate-900/70 border border-slate-700 p-3 space-y-3">
+    <h3 className="font-semibold text-sm">Invoice summary</h3>
+    <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm">
+     <span className="muted">Worked <strong className="text-slate-100 ml-1">{calculation.actualHours.toFixed(2)}h</strong></span>
+     {calculation.lunchHours>0&&<span className="muted">Lunch <strong className="text-slate-100 ml-1">−{calculation.lunchHours.toFixed(2)}h</strong></span>}
+     <span className="muted">Billable <strong className="text-slate-100 ml-1">{calculation.hours.toFixed(2)}h</strong></span>
+     {rateBasis==="day"&&<span className="muted">OT <strong className="text-slate-100 ml-1">{calculation.charges.reduce((sum,day)=>sum+day.otHours,0).toFixed(2)}h</strong></span>}
+    </div>
+    <div className="border-t border-slate-700 pt-3">
+     <p className="muted text-xs">Invoice total</p>
+     <p className="text-2xl font-bold text-green-300 mt-1">{validWork?currency(calculation.total):"—"}</p>
     </div>
    </div>
    <label className="block"><span className="label">Invoice notes (optional)</span>
