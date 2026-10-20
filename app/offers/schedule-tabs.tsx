@@ -2,12 +2,13 @@
 import {useMemo,useState} from "react";
 import Link from "next/link";
 import {finishedAt} from "@/lib/invoicing";
+import {estimateOfferPayout} from "@/lib/payout-estimate";
 import MarkActivitySeen from "@/app/mark-activity-seen";
 import {OfferActions} from "./responses";
 import AppIcon from "@/app/app-icon";
 import {FlowTabs,type DepartmentFlow} from "@/app/admin/jobs/department-flow";
 
-type Job={title:string;venue:string;address?:string;signal_flow?:DepartmentFlow[];starts_at:string;ends_at:string|null;rate:string;details:string;status:string};
+type Job={title:string;venue:string;address?:string;signal_flow?:DepartmentFlow[];starts_at:string;ends_at:string|null;rate:string;rate_basis:"hourly"|"day";details:string;status:string};
 export type ScheduleOffer={id:string;status:string;offer_position:string;offer_rate:string;invoice_id:string|null;job:Job|null};
 const dayKey=(date:Date)=>[date.getFullYear(),String(date.getMonth()+1).padStart(2,"0"),String(date.getDate()).padStart(2,"0")].join("-");
 const dateLabel=(iso:string)=>new Date(iso).toLocaleString("en-US",{dateStyle:"medium",timeStyle:"short"});
@@ -22,6 +23,7 @@ function OfferCard({offer,archived=false}:{offer:ScheduleOffer;archived?:boolean
  const date=(d:Date)=>d.toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"});
  const time=(d:Date)=>d.toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"});
  const pay=offer.offer_rate||job?.rate||"";
+ const estimate=!archived?estimateOfferPayout(job,offer.offer_rate):null;
  return <article className={"panel !p-4 sm:!p-5 space-y-4 "+(archived?"!bg-[#101722] !border-slate-800 text-slate-400":"")}>
   <div className="flex items-start justify-between gap-3">
    <div className="min-w-0">
@@ -30,6 +32,16 @@ function OfferCard({offer,archived=false}:{offer:ScheduleOffer;archived?:boolean
    </div>
    <span className={"shrink-0 rounded-full border px-2.5 py-1 text-xs font-semibold "+(archived?"border-slate-700 bg-slate-800 text-slate-400":booked?"border-green-600/50 bg-green-500/10 text-green-300":accepted?"border-blue-500/50 bg-blue-500/10 text-blue-300":"border-amber-500/50 bg-amber-500/10 text-amber-200")}>{statusText}</span>
   </div>
+  {estimate&&<div className="rounded-xl border border-emerald-500/35 bg-emerald-500/10 px-4 py-3 space-y-1">
+   <p className="flex items-center gap-2 text-sm font-semibold text-emerald-200"><AppIcon name="wallet" size={17}/> Estimated payout</p>
+   <p className="text-2xl font-bold tracking-tight tabular-nums text-green-300">{estimate.label}</p>
+   <p className="text-xs text-slate-400">
+    Based on {estimate.scheduledHours.toFixed(2)} scheduled hours{estimate.overtimeHours>0?", including "+estimate.overtimeHours.toFixed(2)+" OT hrs at 1.5×":""}. Before lunch deductions or schedule changes.
+   </p>
+  </div>}
+  {!archived&&!estimate&&offer.status==="pending"&&<p className="muted text-xs">
+   Payout estimate pending · Requires a defined single-shift schedule and agreed rate.
+  </p>}
   <div className="rounded-xl border border-slate-700/70 bg-slate-900/40 divide-y divide-slate-700/70">
    {offer.offer_position&&<div className="flex items-start gap-3 px-3 py-3">
     <AppIcon name="jobs" size={18} className="text-blue-300 shrink-0 mt-0.5"/>
