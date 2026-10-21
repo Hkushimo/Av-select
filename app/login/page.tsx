@@ -30,6 +30,7 @@ export default function Login(){
     <div><label className="label" htmlFor="password">Password</label><input id="password" type="password" autoComplete="current-password" required value={password} onChange={e=>setPassword(e.target.value)}/></div>
     {error&&<p role="alert" className="text-red-400 text-sm">{error}</p>}
     <button disabled={busy} className="primary w-full">{busy?"Signing in…":"Sign in"}</button>
+    <a href="/forgot-password" className="inline-block text-blue-300 text-sm hover:underline">Forgot password?</a>
    </>}
   </form>
  </main>;

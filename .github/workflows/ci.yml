@@ -1,0 +1,26 @@
+name: Verify AV Select
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Test booking overlap rules
+        run: npm test
+      - name: Build Next.js
+        run: npm run build
+      - name: Verify Cloudflare OpenNext packaging
+        run: npx opennextjs-cloudflare build

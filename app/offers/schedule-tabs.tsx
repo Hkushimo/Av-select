@@ -3,6 +3,7 @@ import {useMemo,useState} from "react";
 import Link from "next/link";
 import {finishedAt,displayOfferRate} from "@/lib/invoicing";
 import {estimateOfferPayout} from "@/lib/payout-estimate";
+import {bookingWindowsOverlap} from "@/lib/booking-conflicts";
 import MarkActivitySeen from "@/app/mark-activity-seen";
 import {OfferActions} from "./responses";
 import AppIcon from "@/app/app-icon";
@@ -14,7 +15,7 @@ const dayKey=(date:Date)=>[date.getFullYear(),String(date.getMonth()+1).padStart
 const dateLabel=(iso:string)=>new Date(iso).toLocaleString("en-US",{dateStyle:"medium",timeStyle:"short"});
 const timeLabel=(iso:string)=>new Date(iso).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"});
 
-function OfferCard({offer,archived=false}:{offer:ScheduleOffer;archived?:boolean}){
+function OfferCard({offer,archived=false,conflictKind=null}:{offer:ScheduleOffer;archived?:boolean;conflictKind?:"booked"|"tentative"|null}){
  const job=offer.job;
  const booked=offer.status==="confirmed",accepted=offer.status==="accepted";
  const statusText=archived?(booked?"Completed":"Past offer"):booked?"Booked":accepted?"Accepted":"Pending";
@@ -77,6 +78,12 @@ function OfferCard({offer,archived=false}:{offer:ScheduleOffer;archived?:boolean
     {!!job?.signal_flow?.length&&<div className="space-y-2"><p className="label">Equipment & signal flow</p><FlowTabs connections={job.signal_flow||[]}/></div>}
    </div>
   </details>}
+  {conflictKind==="booked"&&!archived&&<p role="status" className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-3 text-amber-200 text-sm">
+   <strong>Schedule conflict:</strong> You have a confirmed booking during these hours. You may still respond, but your admin must resolve the overlap before confirming another booking.
+  </p>}
+  {conflictKind==="tentative"&&!archived&&<p role="status" className="rounded-xl border border-blue-500/30 bg-blue-500/10 px-3 py-3 text-blue-200 text-sm">
+   <strong>Potential schedule overlap:</strong> Another accepted job has overlapping hours. Coordinate with your admin before both are confirmed.
+  </p>}
   {offer.status==="pending"&&!archived&&<OfferActions id={offer.id}/>}
   {booked&&archived&&<Link href={offer.invoice_id?"/billing/invoices/"+offer.invoice_id:"/billing/create/"+offer.id} className="inline-flex items-center justify-center gap-2 w-full rounded-xl border border-blue-500/50 bg-blue-500/10 text-blue-200 px-4 py-3 text-sm font-semibold hover:bg-blue-500/20">
    <AppIcon name="wallet" size={17}/>{offer.invoice_id?"View invoice":"Create invoice"}
@@ -97,6 +104,15 @@ export default function ScheduleTabs({offers,userId}:{offers:ScheduleOffer[];use
  const active=offers.filter(o=>!o.job||finishedAt(o.job)>now);
  const pending=active.filter(o=>o.status==="pending");
  const other=active.filter(o=>o.status==="accepted"||o.status==="confirmed");
+ const confirmedBookings=offers.filter(o=>o.status==="confirmed"&&o.job);
+ const tentativeBookings=offers.filter(o=>o.status==="accepted"&&o.job);
+ const conflictFor=(offer:ScheduleOffer):"booked"|"tentative"|null=>{
+  if(offer.status==="confirmed")return null;
+  const overlaps=(other:ScheduleOffer)=>other.id!==offer.id&&bookingWindowsOverlap(offer.job,other.job);
+  if(confirmedBookings.some(overlaps))return "booked";
+  if(tentativeBookings.some(overlaps))return "tentative";
+  return null;
+ };
  const byDay=useMemo(()=>{
   const map=new Map<string,ScheduleOffer[]>();
   for(const offer of accepted){
@@ -135,8 +151,8 @@ export default function ScheduleTabs({offers,userId}:{offers:ScheduleOffer[];use
   </div>
   {tab==="offers"?<div role="tabpanel" className="space-y-4">
     <MarkActivitySeen userId={userId} kind="offers"/>
-    {pending.length>0&&<section className="space-y-3"><h2 className="font-semibold text-lg">New opportunities <span className="muted text-sm">({pending.length})</span></h2>{pending.map(o=><OfferCard key={o.id} offer={o}/>)}</section>}
-    {other.length>0&&<section className="space-y-3"><h2 className="font-semibold text-lg">Accepted & booked jobs <span className="muted text-sm">({other.length})</span></h2>{other.map(o=><OfferCard key={o.id} offer={o}/>)}</section>}
+    {pending.length>0&&<section className="space-y-3"><h2 className="font-semibold text-lg">New opportunities <span className="muted text-sm">({pending.length})</span></h2>{pending.map(o=><OfferCard key={o.id} offer={o} conflictKind={conflictFor(o)}/>)}</section>}
+    {other.length>0&&<section className="space-y-3"><h2 className="font-semibold text-lg">Accepted & booked jobs <span className="muted text-sm">({other.length})</span></h2>{other.map(o=><OfferCard key={o.id} offer={o} conflictKind={conflictFor(o)}/>)}</section>}
     {!pending.length&&!other.length&&<div className="panel muted text-sm">No active offers or bookings. New jobs will appear here when your admin sends them.</div>}
     {past.length>0&&<details className="rounded-2xl border border-slate-800 bg-[#101722] group">
      <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden px-4 py-4 flex items-center justify-between gap-2">
