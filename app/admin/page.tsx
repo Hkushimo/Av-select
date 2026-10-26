@@ -4,7 +4,7 @@ import RosterFilters from "./roster-filters";
 import { currentRole } from "@/lib/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import DispatchOverview from "./dispatch-overview";
+import DispatchOverview,{RecentInvoices} from "./dispatch-overview";
 
 export default async function Admin(){
  const {db,user,role}=await currentRole();
@@ -20,10 +20,10 @@ export default async function Admin(){
  ]);
  return <main className="mx-auto max-w-5xl px-4 py-5 sm:px-6 space-y-5">
   <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-   <PageHeading eyebrow="Dispatch" title="Your staffing desk" description="Keep the next call moving. Review responses, confirm crew, and follow up on offers."/>
-   <div className="flex flex-wrap gap-2 sm:shrink-0"><Link className="primary inline-flex min-h-11 items-center text-sm" href="/admin/jobs">Manage jobs</Link><a href="#your-crew" className="pill inline-flex min-h-11 items-center">Find a technician ↓</a></div>
+   <PageHeading eyebrow="Dispatch" title="Your staffing desk" description={!jobsError&&!jobs?.length?"Ready for your next show. Create a job to get started.":"Review responses and keep your next call moving."}/>
+   <div className="flex flex-wrap gap-2 sm:shrink-0"><Link className="primary inline-flex min-h-11 items-center text-sm" href="/admin/jobs">{!jobsError&&!jobs?.length?"Create a job":"Manage jobs"}</Link><a href="#your-crew" className="pill inline-flex min-h-11 items-center">Find a technician ↓</a></div>
   </div>
-  <DispatchOverview jobs={(jobs||[]).slice(0,50)} invoices={invoices||[]} now={now} loadError={!!jobsError} invoiceError={!!invoiceError} truncated={(jobs?.length||0)>50}/>
+  <DispatchOverview jobs={(jobs||[]).slice(0,50)} now={now} loadError={!!jobsError} truncated={(jobs?.length||0)>50}/>
   <section id="your-crew" className="space-y-4 border-t border-slate-700 pt-6 scroll-mt-24">
   <h2 className="text-xl font-bold">Your crew</h2>
   <div className="flex items-center flex-wrap gap-x-4 gap-y-1 text-sm muted border-b border-slate-800 pb-4">
@@ -34,5 +34,6 @@ export default async function Admin(){
   {techError||ratingsError?<p role="alert" className="text-red-300 text-sm">Unable to load all roster information. {techError?.message||ratingsError?.message}</p>:
    <RosterFilters technicians={techs||[]} ratings={ratings||[]}/>}
   </section>
+  <RecentInvoices invoices={invoices||[]} invoiceError={!!invoiceError}/>
  </main>;
 }
