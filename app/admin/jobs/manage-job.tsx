@@ -126,7 +126,7 @@ export default function ManageJob({jobId,initialStatus,rateBasis,timeZone,starts
    </div>
    <div className="flex flex-wrap gap-2">
     {(["draft","open","closed"] as JobStatus[]).map(s=><button type="button" key={s} disabled={busy} onClick={()=>changeStatus(s)}
-      className={"pill capitalize "+(status===s?"bg-blue-600 border-blue-500":"")}>{s}</button>)}
+      className="pill capitalize" aria-pressed={status===s}>{s}</button>)}
    </div>
   </section>
   <section className="panel !p-4 sm:!p-5 space-y-3">
