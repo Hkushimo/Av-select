@@ -3,25 +3,36 @@ import InviteForm from "./invite-form";
 import RosterFilters from "./roster-filters";
 import { currentRole } from "@/lib/server";
 import { redirect } from "next/navigation";
+import Link from "next/link";
+import DispatchOverview from "./dispatch-overview";
 
 export default async function Admin(){
  const {db,user,role}=await currentRole();
  if(!user)redirect("/login");
  if(role!=="admin")redirect("/");
- const [{data:techs,error:techError},{data:ratings,error:ratingsError},{count:jobCount}]=await Promise.all([
+ const now=Date.now(),since=new Date(now-86400000).toISOString(),instant=new Date(now).toISOString();
+ const [{data:techs,error:techError},{data:ratings,error:ratingsError},{data:jobs,error:jobsError},{data:invoices,error:invoiceError}]=await Promise.all([
   db.from("technicians").select("user_id,full_name,city,state,travel,roles,equipment,avatar_path").order("full_name"),
   db.from("skill_ratings").select("technician_id,skill,level"),
-  db.from("jobs").select("id",{count:"exact",head:true}),
+  db.from("jobs").select("id,title,venue,starts_at,ends_at,time_zone,status,job_offers(status)")
+   .in("status",["open","draft"]).or(`ends_at.gt.${instant},and(ends_at.is.null,starts_at.gt.${since})`).order("starts_at").limit(51),
+  db.from("technician_invoices").select("id,invoice_number,from_name,job_title,issued_on,total,billed_total").order("created_at",{ascending:false}).limit(5),
  ]);
  return <main className="mx-auto max-w-5xl px-4 py-5 sm:px-6 space-y-5">
-  <PageHeading eyebrow="Admin" title="Your crew"/>
+  <div className="flex flex-wrap items-end justify-between gap-4">
+   <PageHeading eyebrow="Dispatch" title="Your staffing desk" description="Keep the next call moving. Review responses, confirm crew, and follow up on offers."/>
+   <div className="flex flex-wrap gap-2"><Link className="primary inline-flex min-h-11 items-center text-sm" href="/admin/jobs">Create / manage jobs</Link><a href="#your-crew" className="pill inline-flex min-h-11 items-center">Find a technician ↓</a></div>
+  </div>
+  <DispatchOverview jobs={(jobs||[]).slice(0,50)} invoices={invoices||[]} now={now} loadError={!!jobsError} invoiceError={!!invoiceError} truncated={(jobs?.length||0)>50}/>
+  <section id="your-crew" className="space-y-4 border-t border-slate-700 pt-6 scroll-mt-24">
+  <h2 className="text-xl font-bold">Your crew</h2>
   <div className="flex items-center flex-wrap gap-x-4 gap-y-1 text-sm muted border-b border-slate-800 pb-4">
    <span><strong className="text-white">{techs?.length??0}</strong> technicians</span>
    <span><strong className="text-white">{ratings?.length??0}</strong> ratings</span>
-   <span><strong className="text-white">{jobCount??0}</strong> jobs</span>
   </div>
   <InviteForm/>
   {techError||ratingsError?<p role="alert" className="text-red-300 text-sm">Unable to load all roster information. {techError?.message||ratingsError?.message}</p>:
    <RosterFilters technicians={techs||[]} ratings={ratings||[]}/>}
+  </section>
  </main>;
 }

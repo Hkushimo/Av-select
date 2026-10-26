@@ -1,7 +1,8 @@
 "use client";
 import TimeZoneSelect from "@/app/time-zone-select";
 import {jobTimeToIso,jobDateTimeInput,formatJobTime,zoneLabel} from "@/lib/job-time";
-import {useState} from "react";
+import CrewBoard from "./crew-board";
+import {useState,useEffect} from "react";
 import {useRouter} from "next/navigation";
 import {browserDb} from "@/lib/supabase";
 import {rosterMatch, type RosterTech, type RosterRating} from "../roster-filters";
@@ -25,6 +26,10 @@ export default function ManageJob({jobId,initialStatus,rateBasis,timeZone,starts
  const [startInput,setStartInput]=useState(()=>toLocal(startsAt));
  const [endInput,setEndInput]=useState(()=>toLocal(endsAt));
  const [currentRequirements,setCurrentRequirements]=useState(requirements);
+ useEffect(()=>setExistingOffers(offers),[offers]);
+ useEffect(()=>setStatus(initialStatus),[initialStatus]);
+ useEffect(()=>setPayBasis(rateBasis),[rateBasis]);
+ useEffect(()=>setCurrentRequirements(requirements),[requirements]);
  const [search,setSearch]=useState(""),[stateFilter,setStateFilter]=useState(""),[roleFilter,setRoleFilter]=useState(""),[equipmentFilter,setEquipmentFilter]=useState(""),[ratingFilter,setRatingFilter]=useState(""),[minimum,setMinimum]=useState(3);
  const offered=new Set(existingOffers.map(o=>o.technician_id));
  const available=technicians.filter(t=>!offered.has(t.user_id));
@@ -156,7 +161,11 @@ export default function ManageJob({jobId,initialStatus,rateBasis,timeZone,starts
     <button type="button" className="primary !px-4 !py-2.5 text-sm" disabled={busy||!zone||!startInput||(zone===timeZone&&startInput===toLocal(startsAt)&&endInput===toLocal(endsAt))} onClick={saveDates}>Save dates</button>
    </div>
   </details>
-</div>:<div className="space-y-3" id="job-staffing">  <details className="panel !p-4 sm:!p-5">
+</div>:<div className="space-y-5 scroll-mt-24" id="job-staffing">
+  <CrewBoard offers={existingOffers} technicians={technicians} busy={busy} onConfirm={o=>updateBooking(o,"confirmed")} onUndo={o=>updateBooking(o,"accepted")} onRelease={release}/>
+  {notice&&<p className="text-green-300 text-sm" role="status">{notice}</p>}
+  {error&&<p className="text-red-400 text-sm" role="alert">{error}</p>}
+  <details className="panel !p-4 sm:!p-5">
    <summary className="cursor-pointer font-semibold text-lg flex items-center justify-between gap-3">
     <span>Staffing requirements <span className="muted text-sm font-normal">({currentRequirements.length})</span></span>
     <span className="text-blue-300 text-xs font-normal shrink-0">Edit</span>
@@ -184,22 +193,7 @@ export default function ManageJob({jobId,initialStatus,rateBasis,timeZone,starts
     <button type="button" className="pill w-full" disabled={!skill.trim()||busy} onClick={addRequirement}>Add requirement</button>
    </div>
   </details>
-  <section className="panel space-y-3">
-   <h2 className="font-semibold text-lg">Crew & bookings ({existingOffers.length})</h2>
-   {existingOffers.length===0&&<p className="muted text-sm">No offers or bookings yet.</p>}
-   {existingOffers.map(o=><div key={o.id} className="py-3 border-b border-slate-700 space-y-2">
-    <p className="font-semibold text-sm">{technicians.find(t=>t.user_id===o.technician_id)?.full_name||"Technician"}</p>
-    <p className={o.status==="confirmed"?"text-green-300 text-xs":"muted text-xs"}>{o.status==="confirmed"?"Booked":o.status==="accepted"?"Accepted · Awaiting confirmation":o.status}</p>
-    {(o.offer_position||o.offer_rate)&&<p className="text-sm text-slate-200">{[o.offer_position,o.offer_rate].filter(Boolean).join(" · ")}</p>}
-    <div className="flex flex-wrap gap-2">
-     {o.status==="accepted"&&<button className="primary text-xs" disabled={busy} onClick={()=>updateBooking(o,"confirmed")}>Confirm booking</button>}
-     {o.status==="confirmed"&&<button className="pill text-xs" disabled={busy} onClick={()=>updateBooking(o,"accepted")}>Undo confirmation</button>}
-     <button className="pill text-xs text-red-300" disabled={busy} onClick={()=>release(o)}>{o.status==="pending"?"Withdraw offer":"Release technician"}</button>
-    </div>
-   </div>)}
-   <p className="muted text-xs">Accepted means interested. Confirm booking to finalize. Release removes the offer and calendar entry.</p>
-  </section>
-  <details className="panel !p-4 sm:!p-5 group">
+  <details className="panel !p-4 sm:!p-5 group" id="send-offers" open>
    <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden flex items-center justify-between gap-2">
     <h2 className="font-semibold text-lg">Send job offers</h2>
     <span className="text-blue-300 text-sm group-open:hidden">Select crew</span>
@@ -242,7 +236,7 @@ export default function ManageJob({jobId,initialStatus,rateBasis,timeZone,starts
    </div>
   </details>
 </div>}
-  {notice&&<p className="text-green-300 text-sm" role="status">{notice}</p>}
-  {error&&<p className="text-red-400 text-sm" role="alert">{error}</p>}
+  {mode==="setup"&&notice&&<p className="text-green-300 text-sm" role="status">{notice}</p>}
+  {mode==="setup"&&error&&<p className="text-red-400 text-sm" role="alert">{error}</p>}
  </div>;
 }
