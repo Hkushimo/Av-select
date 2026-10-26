@@ -1,4 +1,5 @@
 "use client";
+import {jobDate,jobWorkDates,formatJobTime,zoneLabel} from "@/lib/job-time";
 import {useMemo,useState} from "react";
 import Link from "next/link";
 import {finishedAt,displayOfferRate} from "@/lib/invoicing";
@@ -9,11 +10,9 @@ import {OfferActions} from "./responses";
 import AppIcon from "@/app/app-icon";
 import {FlowTabs,type DepartmentFlow} from "@/app/admin/jobs/department-flow";
 
-type Job={title:string;venue:string;address?:string;signal_flow?:DepartmentFlow[];starts_at:string;ends_at:string|null;rate:string;rate_basis:"hourly"|"day";details:string;status:string};
+type Job={time_zone:string|null;title:string;venue:string;address?:string;signal_flow?:DepartmentFlow[];starts_at:string;ends_at:string|null;rate:string;rate_basis:"hourly"|"day";details:string;status:string};
 export type ScheduleOffer={id:string;status:string;offer_position:string;offer_rate:string;invoice_id:string|null;job:Job|null};
 const dayKey=(date:Date)=>[date.getFullYear(),String(date.getMonth()+1).padStart(2,"0"),String(date.getDate()).padStart(2,"0")].join("-");
-const dateLabel=(iso:string)=>new Date(iso).toLocaleString("en-US",{dateStyle:"medium",timeStyle:"short"});
-const timeLabel=(iso:string)=>new Date(iso).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"});
 
 function OfferCard({offer,archived=false,conflictKind=null}:{offer:ScheduleOffer;archived?:boolean;conflictKind?:"booked"|"tentative"|null}){
  const job=offer.job;
@@ -21,8 +20,8 @@ function OfferCard({offer,archived=false,conflictKind=null}:{offer:ScheduleOffer
  const statusText=archived?(booked?"Completed":"Past offer"):booked?"Booked":accepted?"Accepted":"Pending";
  const start=job?.starts_at?new Date(job.starts_at):null;
  const end=job?.ends_at?new Date(job.ends_at):null;
- const date=(d:Date)=>d.toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"});
- const time=(d:Date)=>d.toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"});
+ const date=(d:Date)=>d.toLocaleDateString("en-US",{timeZone:job?.time_zone||"UTC",weekday:"short",month:"short",day:"numeric"});
+ const time=(d:Date)=>d.toLocaleTimeString("en-US",{timeZone:job?.time_zone||"UTC",hour:"numeric",minute:"2-digit",timeZoneName:"short"});
  const rawPay=offer.offer_rate||job?.rate||"";
  const pay=displayOfferRate(rawPay,job?.rate_basis==="day"?"day":"hourly");
  const estimate=!archived?estimateOfferPayout(job,offer.offer_rate):null;
@@ -52,8 +51,9 @@ function OfferCard({offer,archived=false,conflictKind=null}:{offer:ScheduleOffer
    {start&&<div className="flex items-start gap-3 px-3 py-3">
     <AppIcon name="calendar" size={18} className="text-blue-300 shrink-0 mt-0.5"/>
     <div className="min-w-0 text-sm">
-     <p className="font-semibold">{date(start)}{end&&start.toDateString()!==end.toDateString()?" – "+date(end):""}</p>
-     <p className="muted mt-0.5">{time(start)}{end?" – "+(start.toDateString()===end.toDateString()?time(end):date(end)+", "+time(end)):""}</p>
+     <p className="font-semibold">{date(start)}{end&&jobDate(start,job?.time_zone||null)!==jobDate(end,job?.time_zone||null)?" – "+date(end):""}</p>
+     <p className="muted text-xs">{zoneLabel(job?.time_zone||null)}</p>
+     <p className="muted mt-0.5">{time(start)}{end?" – "+(jobDate(start,job?.time_zone||null)===jobDate(end,job?.time_zone||null)?time(end):date(end)+", "+time(end)):""}</p>
     </div>
    </div>}
    {pay&&<div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 px-3 py-3">
@@ -116,17 +116,8 @@ export default function ScheduleTabs({offers,userId}:{offers:ScheduleOffer[];use
  const byDay=useMemo(()=>{
   const map=new Map<string,ScheduleOffer[]>();
   for(const offer of accepted){
-   const start=new Date(offer.job!.starts_at);
-   const end=offer.job?.ends_at?new Date(offer.job.ends_at):start;
-   const lastDay=new Date(Math.max(start.getTime(),end.getTime()));
-   const endTime=new Date(lastDay.getFullYear(),lastDay.getMonth(),lastDay.getDate()).getTime();
-   const cursor=new Date(start.getFullYear(),start.getMonth(),start.getDate());
-   let count=0;
-   while(cursor.getTime()<=endTime&&count<367){
-    const key=dayKey(cursor);
+   for(const key of jobWorkDates(offer.job!.starts_at,offer.job!.ends_at,offer.job!.time_zone||"UTC")){
     map.set(key,[...(map.get(key)||[]),offer]);
-    cursor.setDate(cursor.getDate()+1);
-    count++;
    }
   }
   return map;
@@ -166,7 +157,7 @@ export default function ScheduleTabs({offers,userId}:{offers:ScheduleOffer[];use
     </details>}
    </div>:<div role="tabpanel" className="space-y-4">
     <div className="flex items-center justify-between flex-wrap gap-x-4 gap-y-2">
-     <p className="muted text-xs">Accepted shifts are tentative until confirmed.</p>
+     <p className="muted text-xs">Calendar dates use each venue’s time zone. Accepted shifts are tentative until confirmed.</p>
      <div className="flex items-center gap-3 text-xs muted">
       <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-blue-500"/>Accepted</span>
       <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-green-500"/>Booked</span>
@@ -202,7 +193,7 @@ export default function ScheduleTabs({offers,userId}:{offers:ScheduleOffer[];use
        <p className="text-sm muted">{o.job?.venue||"Venue TBD"}</p>
        {o.job?.address&&<a href={"https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(o.job.address)} target="_blank" rel="noopener noreferrer" className="text-blue-300 text-xs underline break-words">{o.job.address} ↗ Map</a>}
        {(o.job?.signal_flow?.length||0)>0&&<details className="rounded-lg border border-slate-700 p-3"><summary className="cursor-pointer text-sm">Your equipment & signal flow</summary><div className="mt-3"><FlowTabs connections={o.job?.signal_flow||[]}/></div></details>}
-       {o.job?.starts_at&&<p className="text-sm">{dateLabel(o.job.starts_at)}{o.job.ends_at?` – ${timeLabel(o.job.ends_at)}`:""}</p>}
+       {o.job?.starts_at&&<p className="text-sm">{formatJobTime(o.job.starts_at,o.job.time_zone)}{o.job.ends_at?` – ${formatJobTime(o.job.ends_at,o.job.time_zone)}`:""} · {zoneLabel(o.job.time_zone)}</p>}
        {o.offer_position&&<p className="text-sm font-semibold">{o.offer_position}</p>}
        {(o.offer_rate||o.job?.rate)&&<p className="text-sm inline-flex items-center gap-2"><AppIcon name="wallet" size={16} className="text-green-300"/><span>{displayOfferRate(o.offer_rate||o.job?.rate||"",o.job?.rate_basis==="day"?"day":"hourly")}</span></p>}
        {o.job?.details&&<p className="text-sm whitespace-pre-wrap break-words">{o.job.details}</p>}

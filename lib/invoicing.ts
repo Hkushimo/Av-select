@@ -1,4 +1,5 @@
 export type InvoiceRow={
+ job_time_zone?:string|null;
  id:string;invoice_number:number;offer_id:string|null;
  from_name:string;from_email:string;from_phone:string;from_location:string;
  bill_to:string;bill_to_address:string;

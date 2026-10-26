@@ -10,7 +10,7 @@ export default async function MySchedule(){
  if(role!=="technician")redirect("/");
  const [{data:offers,error},{data:invoices,error:invoiceError}]=await Promise.all([
   db.from("job_offers")
-   .select("id,status,offer_position,offer_rate,jobs(title,venue,address,signal_flow,starts_at,ends_at,rate,rate_basis,details,status)")
+   .select("id,status,offer_position,offer_rate,jobs(title,venue,address,signal_flow,time_zone,starts_at,ends_at,rate,rate_basis,details,status)")
    .eq("technician_id",user.id).in("status",["pending","accepted","confirmed"]).order("created_at",{ascending:false}),
   db.from("technician_invoices").select("id,offer_id").eq("technician_id",user.id)
  ]);

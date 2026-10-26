@@ -1,14 +1,14 @@
 "use client";
+import {jobDate,jobWorkDates} from "@/lib/job-time";
 import {useState,type FormEvent} from "react";
 import {useRouter} from "next/navigation";
 import {browserDb} from "@/lib/supabase";
-import {currency,calculateInvoiceDays,workDatesForJob,DAY_INCLUDED_HOURS,DAY_OT_MULTIPLIER,shiftHours,type RateBasis,type InvoiceWorkDay} from "@/lib/invoicing";
+import {currency,calculateInvoiceDays,DAY_INCLUDED_HOURS,DAY_OT_MULTIPLIER,shiftHours,type RateBasis,type InvoiceWorkDay} from "@/lib/invoicing";
 import AppIcon from "@/app/app-icon";
 
-type JobInfo={title:string;venue:string;address:string;starts_at:string;ends_at:string|null;rate:string;rate_basis:RateBasis;status:string};
+type JobInfo={time_zone:string|null;title:string;venue:string;address:string;starts_at:string;ends_at:string|null;rate:string;rate_basis:RateBasis;status:string};
 type TechnicianInfo={name:string;email:string;phone:string;location:string};
-type DateEntry={date:string;timeIn:string;timeOut:string;lunch_taken:boolean;extra:boolean};
-function localDate(value:Date){return new Date(value.getTime()-value.getTimezoneOffset()*60000).toISOString().slice(0,10)}
+type DateEntry={date:string;timeIn:string;timeOut:string;lunch_taken:boolean};
 function dateLabel(date:string){return new Date(date+"T12:00:00").toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"})}
 export default function InvoiceForm({offerId,job,position,originalRate,rateBasis,agreedRate,technician}:{
  offerId:string;job:JobInfo;position:string;originalRate:string;rateBasis:RateBasis;agreedRate:number;technician:TechnicianInfo;
@@ -16,10 +16,10 @@ export default function InvoiceForm({offerId,job,position,originalRate,rateBasis
  const router=useRouter();
  const [billTo,setBillTo]=useState("");
  const [billToAddress,setBillToAddress]=useState("");
- const [entries,setEntries]=useState<DateEntry[]>(()=>workDatesForJob(job.starts_at,job.ends_at).map(date=>({date,timeIn:"",timeOut:"",lunch_taken:false,extra:false})));
+ const [entries,setEntries]=useState<DateEntry[]>(()=>jobWorkDates(job.starts_at,job.ends_at,job.time_zone||"UTC").map(date=>({date,timeIn:"",timeOut:"",lunch_taken:false})));
  const [notes,setNotes]=useState("");
- const [issuedOn]=useState(()=>localDate(new Date()));
- const [dueOn,setDueOn]=useState(()=>{const d=new Date();d.setDate(d.getDate()+30);return localDate(d)});
+ const [issuedOn]=useState(()=>jobDate(new Date(),job.time_zone));
+ const [dueOn,setDueOn]=useState(()=>{const d=new Date(issuedOn+"T12:00:00Z");d.setUTCDate(d.getUTCDate()+30);return d.toISOString().slice(0,10)});
  const [busy,setBusy]=useState(false),[error,setError]=useState("");
 
  const allValid=entries.every(e=>!!e.date&&(
@@ -36,11 +36,6 @@ export default function InvoiceForm({offerId,job,position,originalRate,rateBasis
 
  function updateEntry(index:number,patch:Partial<DateEntry>){
   setEntries(items=>items.map((entry,i)=>i===index?{...entry,...patch}:entry));
- }
- function addDay(){
-  const previous=entries.at(-1)?.date||localDate(new Date());
-  const next=new Date(previous+"T12:00:00");next.setDate(next.getDate()+1);
-  setEntries(items=>[...items,{date:localDate(next),timeIn:"",timeOut:"",lunch_taken:false,extra:true}]);
  }
  async function save(event:FormEvent){
   event.preventDefault();setError("");
@@ -71,7 +66,10 @@ export default function InvoiceForm({offerId,job,position,originalRate,rateBasis
     throw insertError;
    }
    router.replace("/billing/invoices/"+data.id);
-  }catch(e){setError(e instanceof Error?e.message:"Could not create invoice.");setBusy(false)}
+  }catch(e){
+   const message=e&&typeof e==="object"&&"message" in e&&typeof e.message==="string"?e.message:"Could not create invoice.";
+   setError(message);setBusy(false);
+  }
  }
  return <form onSubmit={save} className="space-y-4">
   <section className="panel !p-4 sm:!p-5 space-y-3">
@@ -107,11 +105,7 @@ export default function InvoiceForm({offerId,job,position,originalRate,rateBasis
      const line=calculation.charges.find(day=>day.date===entry.date);
      return <div key={index} className="rounded-xl border border-slate-700 bg-slate-900/30 p-3 space-y-2">
       <div className="flex items-center justify-between gap-2">
-       {entry.extra?<input type="date" aria-label={"Additional work date "+(index+1)}
-        value={entry.date} onChange={e=>updateEntry(index,{date:e.target.value})} disabled={busy} className="!w-auto min-w-0 !py-2"/>:
-        <span className="text-sm font-semibold">{dateLabel(entry.date)}</span>}
-       {entry.extra&&<button type="button" aria-label={"Remove extra date "+(index+1)}
-        onClick={()=>setEntries(items=>items.filter((_,i)=>i!==index))} disabled={busy} className="text-red-300 text-sm px-2">✕</button>}
+       <span className="text-sm font-semibold">{dateLabel(entry.date)}</span>
       </div>
       <div className="grid grid-cols-2 gap-3">
        <label className="min-w-0 block"><span className="label">Time in</span>
@@ -138,7 +132,7 @@ export default function InvoiceForm({offerId,job,position,originalRate,rateBasis
      </div>;
     })}
    </div>
-   <button type="button" className="text-blue-300 text-sm font-semibold py-1" onClick={addDay} disabled={busy||entries.length>=366}>+ Add another work day</button>
+   <p className="muted text-xs">Work dates and clock times use {job.time_zone}. For additional work dates, ask the admin to update the job schedule before invoicing.</p>
    {duplicateDates&&<p className="text-amber-200 text-xs">Each date can appear only once.</p>}
    {!allValid&&<p className="text-amber-200 text-xs">Each entered shift needs a valid Time in and Time out. Overnight shifts are supported; equal times are not.</p>}
    <div className="rounded-xl bg-slate-900/70 border border-slate-700 p-3 space-y-3">

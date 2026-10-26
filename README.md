@@ -26,6 +26,10 @@ Keep all secret keys out of Git. Configure environment variables in deployment s
 ## Cloudflare deployment
 The Cloudflare Worker uses OpenNext. The build and runtime environments both require `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`. After adding or changing build variables, start a new GitHub-triggered build so Next.js includes them.
 
+Cloudflare Workers Builds should use `npm run build`. This runs OpenNext, which calls `npm run build:next` for the framework build and then produces `.open-next/worker.js` and `.open-next/assets`. The separate `buildCommand` in `open-next.config.ts` prevents recursion. Use `npm run build:next` only when you specifically need the plain Next.js output.
+
+PR builds can use `npx wrangler preview` as their deploy command; the required empty `previews` block is included in `wrangler.jsonc`. Configure preview runtime variables/secrets in Cloudflare's Previews Base settings using staging resources; production settings are not automatically inherited. Validate packaging locally with `npm run build` followed by `npx wrangler deploy --dry-run` (no upload). Production deployment remains a separate action.
+
 ## Invitation deployment
 Cloudflare auto-deploys changes from the main branch. The admin dashboard generates a 7-day, single-use link with no email address required. Android's native share sheet lets the admin choose any messaging app. The recipient enters their own email/password on `/invite` and completes onboarding. Run `supabase/migrations/002_share_invites.sql` in Supabase SQL Editor before testing. The server API requires the `SUPABASE_SECRET_KEY` Cloudflare runtime secret. Supabase Auth email/password sign-in must be enabled; the platform still does not expose public technician registration.
 
@@ -61,3 +65,15 @@ Before using these changes with real paid jobs, run a two-account pilot:
 
 ### Still to complete
 Admin MFA enforcement, verified automated database backups, email/push job notifications, invoice approval/corrections/payment states, and multi-day call times are separate follow-up phases. No SMS is planned.
+
+## Venue time zones, invoice dates, and agreed pay terms
+
+Apply `supabase/migrations/018_job_time_and_pay_terms.sql` after 017 **before deploying this version**. The migration runs in a transaction. Test it against a staging copy first. Do not merge to the auto-deploying main branch until the database is ready.
+
+- New jobs require an explicit venue IANA time zone. Job entry, admin lists, technician schedules/calendars, and new invoice snapshots use that zone. Midnight end times do not add an extra calendar/work day. Missing end times retain the existing 24-hour booking window.
+- Existing job timestamps are not shifted or assigned a guessed zone. They display in UTC with a confirmation notice. Open **Job schedule → Edit**, choose the venue zone, verify the redisplayed call times, and save. Changing the selector redisplays the saved instants; edit the times separately if the original call was wrong. New offers and invoices are blocked until the venue zone is confirmed. Historic invoices remain unchanged and identify their original zone as unrecorded.
+- Local call times in daylight-saving gaps or repeated hours are rejected with an explanation rather than silently choosing an instant. Invoice duration continues to use the established wall-clock billing policy (including overnight shifts), not elapsed DST-adjusted hours.
+- The database derives each new offer's numeric amount and billing basis from the saved job and offered rate. Existing parsable rates are backfilled; ambiguous legacy rates stay unresolved and require release/reissue. Offer identity, position, rate, amount, and basis are immutable. To change terms, release and reissue the offer for technician acceptance. Active offers prevent changing the job's billing basis; cancelled offers cannot be revived. Job-row locks serialize offer creation with billing-basis changes.
+- Invoice submission verifies venue-local work dates are inside the job's date window, rejects future work/unfinished clock-outs, sets the issue date on the server, and requires the due date to be on or after it. Billing uses the frozen offer rate and basis. Additional work dates require an admin to extend the schedule first; overtime on a valid date remains supported. Existing duplicate-date, clock-time, ownership, completion, and one-invoice-per-offer checks remain in force.
+
+Validation: `npm ci`, `npm test`, `npm run build`, and `npx opennextjs-cloudflare build`. Tests run the actual scheduling/billing migrations in embedded PostgreSQL (PGlite), using a minimal Auth fixture and excluding the unrelated Storage migration. They do not access production Supabase. PGlite is single-session: before rollout, also exercise two concurrent admin sessions against staging (send offer while changing pay basis; confirm while editing dates). Verify no committed offer has terms inconsistent with the job and that one conflicting operation fails. Test technician invoice submission and calendar dates with browsers in different device zones.

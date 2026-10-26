@@ -1,3 +1,4 @@
+import {formatJobTime,zoneLabel} from "@/lib/job-time";
 import PageHeading from "@/app/page-heading";
 import {currentRole} from "@/lib/server";
 import {redirect} from "next/navigation";
@@ -8,7 +9,7 @@ import JobCreate from "./create-job";
 export default async function Jobs(){
  const {db,user,role}=await currentRole();
  if(!user)redirect("/login");if(role!=="admin")redirect("/");
- const {data:jobs,error}=await db.from("jobs").select("id,title,venue,starts_at,ends_at,status,rate").order("starts_at",{ascending:false});
+ const {data:jobs,error}=await db.from("jobs").select("id,title,venue,time_zone,starts_at,ends_at,status,rate").order("starts_at",{ascending:false});
  return <main className="mx-auto max-w-4xl px-4 py-6 space-y-5">
   <Breadcrumbs items={[{label:"Dashboard",href:"/admin"},{label:"Jobs"}]}/>
   <PageHeading eyebrow="Staffing" title="Jobs"/>
@@ -25,7 +26,7 @@ export default async function Jobs(){
         <span className="text-xs capitalize rounded-full border border-slate-600 px-2 py-1 shrink-0">{job.status}</span>
        </div>
        <p className="muted text-sm mt-1">{job.venue||"Venue TBD"}</p>
-       <p className="muted text-xs mt-1">{new Date(job.starts_at).toLocaleString("en-US",{dateStyle:"medium",timeStyle:"short"})}{job.rate?" · "+job.rate:""}</p>
+       <p className="muted text-xs mt-1">{formatJobTime(job.starts_at,job.time_zone)} · {zoneLabel(job.time_zone)}{job.rate?" · "+job.rate:""}</p>
        <p className="text-blue-300 text-xs mt-2">View job & staff →</p>
       </Link>)}
     </div>}

@@ -1,3 +1,4 @@
+import {formatJobTime,zoneLabel} from "@/lib/job-time";
 import PageHeading from "@/app/page-heading";
 import {notFound,redirect} from "next/navigation";
 import {currentRole} from "@/lib/server";
@@ -16,7 +17,7 @@ export default async function JobDetails({params}:Props){
  const {id}=await params;
  if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id))notFound();
  const [{data:job,error},{data:technicians},{data:offers},{data:requirements},{data:ratings}]=await Promise.all([
-  db.from("jobs").select("id,title,venue,address,signal_flow,starts_at,ends_at,rate,rate_basis,details,status").eq("id",id).maybeSingle(),
+  db.from("jobs").select("id,title,venue,address,signal_flow,time_zone,starts_at,ends_at,rate,rate_basis,details,status").eq("id",id).maybeSingle(),
   db.from("technicians").select("user_id,full_name,city,state,travel,roles,equipment,avatar_path").order("full_name"),
   db.from("job_offers").select("id,technician_id,status,offer_position,offer_rate").eq("job_id",id).neq("status","declined").order("created_at"),
   db.from("job_requirements").select("skill,min_level,required").eq("job_id",id).order("skill"),
@@ -31,14 +32,20 @@ export default async function JobDetails({params}:Props){
  return <main className="mx-auto max-w-3xl px-4 py-6 space-y-5">
   <Breadcrumbs items={[{label:"Dashboard",href:"/admin"},{label:"Jobs",href:"/admin/jobs"},{label:job.title}]}/>
   <PageHeading eyebrow="Job details" title={job.title} description={job.venue||"Venue TBD"}/>
+  <section className="rounded-xl border border-slate-700 bg-slate-900/60 p-4 space-y-2" aria-label="Job call summary">
+   <p className="text-sm font-semibold">{formatJobTime(job.starts_at,job.time_zone)}{job.ends_at?" – "+formatJobTime(job.ends_at,job.time_zone):""}</p>
+   <p className="muted text-xs">{zoneLabel(job.time_zone)} · <span className="capitalize">{status}</span></p>
+  </section>
   <nav aria-label="Job page sections" className="flex gap-2 flex-wrap text-sm">
-   <a className="pill text-blue-300" href="#job-schedule">Schedule</a>
-   <a className="pill text-blue-300" href="#job-production">Production</a>
    <a className="pill text-blue-300" href="#job-staffing">Crew & offers</a>
+   <a className="pill text-blue-300" href="#job-production">Production</a>
+   <a className="pill text-blue-300" href="#job-schedule">Schedule</a>
    <a className="pill text-blue-300" href="#job-invoices">Tech invoices</a>
   </nav>
+  <ManageJob mode="staffing" jobId={job.id} initialStatus={status} rateBasis={(job.rate_basis==="day"?"day":"hourly") as RateBasis}
+    timeZone={job.time_zone} startsAt={job.starts_at} endsAt={job.ends_at} technicians={technicians||[]} ratings={ratings||[]} offers={offers||[]} requirements={requirements||[]}/>
   <ManageJob mode="setup" jobId={job.id} initialStatus={status} rateBasis={(job.rate_basis==="day"?"day":"hourly") as RateBasis}
-    startsAt={job.starts_at} endsAt={job.ends_at} technicians={technicians||[]} ratings={ratings||[]} offers={offers||[]} requirements={requirements||[]}/>
+    timeZone={job.time_zone} startsAt={job.starts_at} endsAt={job.ends_at} technicians={technicians||[]} ratings={ratings||[]} offers={offers||[]} requirements={requirements||[]}/>
   <div id="job-production" className="space-y-3 scroll-mt-24">
    <JobProductionEditor jobId={job.id} initialVenue={job.venue||""} initialAddress={job.address||""}/>
    <section className="panel !p-4 sm:!p-5 space-y-3">
@@ -48,8 +55,6 @@ export default async function JobDetails({params}:Props){
    </section>
    <JobSignalFlowSection jobId={job.id} initialFlows={(Array.isArray(job.signal_flow)?job.signal_flow:[]) as DepartmentFlow[]}/>
   </div>
-  <ManageJob mode="staffing" jobId={job.id} initialStatus={status} rateBasis={(job.rate_basis==="day"?"day":"hourly") as RateBasis}
-    startsAt={job.starts_at} endsAt={job.ends_at} technicians={technicians||[]} ratings={ratings||[]} offers={offers||[]} requirements={requirements||[]}/>
   <TechInvoices offers={offers||[]} technicians={technicians||[]}
    invoices={invoiceResult.data||[]} loadError={!!invoiceResult.error}/>
   <DeleteJob jobId={job.id} title={job.title} offerCount={offers?.length||0}/>

@@ -1,3 +1,4 @@
+import {formatJobTime} from "@/lib/job-time";
 import Link from "next/link";
 import {notFound,redirect} from "next/navigation";
 import Breadcrumbs from "@/app/admin/breadcrumbs";
@@ -24,7 +25,7 @@ export default async function InvoiceDetails({params}:Props){
  const itemized=(invoice.billing_basis==="day"||invoice.billing_basis==="hourly")&&Array.isArray(invoice.work_days)&&invoice.work_days.length>0&&Number(invoice.agreed_rate)>0;
  const breakdown=itemized?calculateInvoiceDays(basis,Number(invoice.agreed_rate),invoice.work_days||[],invoice.overtime_policy==="after_10_1_5"):null;
  const total=Number(invoice.billed_total??invoice.total);
- const workDate=new Date(invoice.job_starts_at).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});
+ const workDate=formatJobTime(invoice.job_starts_at,invoice.job_time_zone||null);
  return <main className="invoice-page mx-auto max-w-3xl px-4 py-6 space-y-5">
   <div className="invoice-chrome space-y-4">
    <Breadcrumbs items={role==="admin"?
@@ -61,7 +62,7 @@ export default async function InvoiceDetails({params}:Props){
     <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Job</p>
     <p className="font-semibold">{invoice.job_title}</p>
     {invoice.job_position&&<p>{invoice.job_position}</p>}
-    <p className="text-slate-600">{invoice.job_venue||"Venue not specified"} · {workDate}</p>
+    <p className="text-slate-600">{invoice.job_venue||"Venue not specified"} · {workDate} · {invoice.job_time_zone||"UTC (original venue zone not recorded)"}</p>
     {itemized&&<p className="text-xs text-slate-500 mt-1">{basis==="day"?"Day rate · 10 hours included · overtime at 1.5× after 10 billable hours":invoice.overtime_policy==="after_10_1_5"?"Hourly rate · 1.5× overtime after 10 billable hours":"Hourly rate · actual billable hours"}</p>}
     {invoice.job_address&&<p className="text-slate-600 break-words">{invoice.job_address}</p>}
    </div>

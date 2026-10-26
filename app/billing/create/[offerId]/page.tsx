@@ -3,12 +3,12 @@ import {notFound,redirect} from "next/navigation";
 import Breadcrumbs from "@/app/admin/breadcrumbs";
 import PageHeading from "@/app/page-heading";
 import {currentRole} from "@/lib/server";
-import {finishedAt,agreedRateFromLabel,type RateBasis} from "@/lib/invoicing";
+import {finishedAt,type RateBasis} from "@/lib/invoicing";
 import InvoiceForm from "../../invoice-form";
 
 export const dynamic="force-dynamic";
 type Props={params:Promise<{offerId:string}>};
-type JobInfo={title:string;venue:string;address:string;starts_at:string;ends_at:string|null;rate:string;rate_basis:RateBasis;status:string};
+type JobInfo={time_zone:string|null;title:string;venue:string;address:string;starts_at:string;ends_at:string|null;rate:string;rate_basis:RateBasis;status:string};
 export default async function CreateInvoice({params}:Props){
  const {db,user,role}=await currentRole();
  if(!user)redirect("/login");
@@ -16,7 +16,7 @@ export default async function CreateInvoice({params}:Props){
  const {offerId}=await params;
  if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(offerId))notFound();
  const [{data:offer,error},{data:tech},{data:existing}]=await Promise.all([
-  db.from("job_offers").select("id,status,offer_position,offer_rate,jobs(title,venue,address,starts_at,ends_at,rate,rate_basis,status)")
+  db.from("job_offers").select("id,status,offer_position,offer_rate,agreed_basis,agreed_amount,jobs(title,venue,address,time_zone,starts_at,ends_at,rate,rate_basis,status)")
    .eq("id",offerId).eq("technician_id",user.id).maybeSingle(),
   db.from("technicians").select("full_name,phone,city,state").eq("user_id",user.id).maybeSingle(),
   db.from("technician_invoices").select("id").eq("offer_id",offerId).eq("technician_id",user.id).maybeSingle()
@@ -33,16 +33,16 @@ export default async function CreateInvoice({params}:Props){
    <Link href="/offers" className="text-blue-300 text-sm font-semibold">Back to My Schedule →</Link></div>
  </main>;
  const rateLabel=offer.offer_rate||job.rate||"";
- const rateBasis:RateBasis=job.rate_basis==="day"?"day":"hourly";
- const agreedRate=agreedRateFromLabel(rateLabel,rateBasis);
+ const rateBasis:RateBasis=offer.agreed_basis==="day"?"day":"hourly";
+ const agreedRate=offer.agreed_amount===null?null:Number(offer.agreed_amount);
  const fromLocation=[tech?.city,tech?.state].filter(Boolean).join(", ");
  return <main className="mx-auto max-w-2xl px-4 py-6 space-y-5">
   <Breadcrumbs items={[{label:"Dashboard",href:"/dashboard"},{label:"Billing",href:"/billing"},{label:"New invoice"}]}/>
   <PageHeading eyebrow="Technician billing" title="Create invoice" description={job.title}/>
-  {agreedRate===null?<section className="panel space-y-3">
+  {!job.time_zone?<section className="panel text-amber-200">Ask the administrator to confirm the venue time zone before submitting an invoice.</section>:agreedRate===null?<section className="panel space-y-3">
     <p className="text-amber-200 text-sm font-semibold">Agreed rate needs clarification</p>
     <p className="muted text-sm">This booking's saved rate ({rateLabel||"missing"}) isn't an unambiguous {rateBasis==="day"?"day":"hourly"} amount. Invoice creation is paused rather than allowing a technician to change the agreed rate.</p>
-    <p className="muted text-xs">Ask the administrator to correct the job's pay structure and agreed offer rate.</p>
+    <p className="muted text-xs">Ask the administrator to release and reissue the booking with valid agreed pay terms.</p>
     <Link href="/offers" className="text-blue-300 text-sm font-semibold">Back to My Schedule →</Link>
    </section>:<InvoiceForm offerId={offer.id} job={job} position={offer.offer_position||""}
     originalRate={rateLabel} rateBasis={rateBasis} agreedRate={agreedRate}

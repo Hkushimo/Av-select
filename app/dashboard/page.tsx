@@ -1,3 +1,4 @@
+import {formatJobTime,zoneLabel} from "@/lib/job-time";
 import PageHeading from "@/app/page-heading";
 import Link from "next/link";
 import {redirect} from "next/navigation";
@@ -6,7 +7,7 @@ import AppIcon from "@/app/app-icon";
 import {estimateOfferPayout} from "@/lib/payout-estimate";
 import {displayOfferRate} from "@/lib/invoicing";
 
-type Job={title:string;venue:string;starts_at:string;ends_at:string|null;rate:string;rate_basis:"hourly"|"day";details:string;status:string};
+type Job={time_zone:string|null;title:string;venue:string;starts_at:string;ends_at:string|null;rate:string;rate_basis:"hourly"|"day";details:string;status:string};
 export default async function TechnicianDashboard(){
  const {db,user,role}=await currentRole();
  if(!user)redirect("/login");
@@ -14,7 +15,7 @@ export default async function TechnicianDashboard(){
  if(role!=="technician")redirect("/");
  const [{data:profile,error:profileError},{data:offers,error:offersError}]=await Promise.all([
   db.from("technicians").select("full_name,completed_at").eq("user_id",user.id).maybeSingle(),
-  db.from("job_offers").select("id,status,offer_rate,jobs(title,venue,starts_at,ends_at,rate,rate_basis,details,status)")
+  db.from("job_offers").select("id,status,offer_rate,jobs(title,venue,time_zone,starts_at,ends_at,rate,rate_basis,details,status)")
    .eq("technician_id",user.id).in("status",["pending","accepted","confirmed"])
  ]);
  if(!profile?.completed_at&&!profileError)redirect("/onboarding");
@@ -26,7 +27,7 @@ export default async function TechnicianDashboard(){
   .sort((a,b)=>new Date(a.job!.starts_at).getTime()-new Date(b.job!.starts_at).getTime())[0];
  const estimate=upcoming?estimateOfferPayout(upcoming.job,upcoming.offer_rate):null;
  const firstName=profile?.full_name?.trim().split(/\s+/)[0];
- const date=(value:string)=>new Date(value).toLocaleString("en-US",{dateStyle:"medium",timeStyle:"short"});
+ const date=(value:string)=>formatJobTime(value,upcoming?.job?.time_zone||null);
  return <main className="mx-auto max-w-3xl px-4 py-6 space-y-5">
   <PageHeading eyebrow="Technician dashboard" title={<>Welcome back{firstName?", "+firstName:""}!</>} description="Here's what's happening with your work."/>
   {(profileError||offersError)&&<p role="alert" className="text-red-300 text-sm">Some dashboard information could not load. {profileError?.message||offersError?.message}</p>}
@@ -49,7 +50,7 @@ export default async function TechnicianDashboard(){
    </div>
    {upcoming?.job?<div className="space-y-2 border-t border-slate-700 pt-3">
     <h3 className="font-semibold text-lg">{upcoming.job.title}</h3>
-    <p className="muted text-sm">{date(upcoming.job.starts_at)}{upcoming.job.ends_at?" – "+date(upcoming.job.ends_at):""}</p>
+    <p className="muted text-sm">{date(upcoming.job.starts_at)}{upcoming.job.ends_at?" – "+date(upcoming.job.ends_at):""} · {zoneLabel(upcoming.job.time_zone)}</p>
     <p className="muted text-sm">{upcoming.job.venue||"Venue TBD"}</p>
     {(upcoming.offer_rate||upcoming.job.rate)&&<p className="text-sm muted">Your rate · {displayOfferRate(upcoming.offer_rate||upcoming.job.rate,upcoming.job.rate_basis==="day"?"day":"hourly")}</p>}
     {estimate&&<div className="rounded-lg border border-emerald-500/25 bg-emerald-500/10 px-3 py-3 space-y-1">
