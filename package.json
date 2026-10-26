@@ -18,13 +18,14 @@
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.11",
+    "@opennextjs/cloudflare": "^1.0.0",
+    "@tailwindcss/postcss": "^4",
     "@types/node": "^22",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "typescript": "^5.7",
     "tailwindcss": "^4",
-    "@tailwindcss/postcss": "^4",
-    "@opennextjs/cloudflare": "^1.0.0",
+    "typescript": "^5.7",
     "wrangler": "^4.0.0"
   }
 }

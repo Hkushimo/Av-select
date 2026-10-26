@@ -17,8 +17,8 @@ jobs:
         with:
           node-version: "24"
       - name: Install dependencies
-        run: npm install --no-audit --no-fund
-      - name: Test booking overlap rules
+        run: npm ci --no-audit --no-fund
+      - name: Test scheduling and database billing rules
         run: npm test
       - name: Build Next.js
         run: npm run build

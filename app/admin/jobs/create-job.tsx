@@ -1,12 +1,14 @@
 "use client";
+import TimeZoneSelect from "@/app/time-zone-select";
+import {jobTimeToIso} from "@/lib/job-time";
 import {FormEvent,useState} from "react";
 import {useRouter} from "next/navigation";
 import {browserDb} from "@/lib/supabase";
 import DepartmentFlowEditor,{type DepartmentFlow} from "./department-flow";
 import type {RateBasis} from "@/lib/invoicing";
 
-function localIso(value:string){
- const d=new Date(value);
+function localIso(value:string,zone:string){
+ const d=new Date(jobTimeToIso(value,zone));
  if(!value||Number.isNaN(d.getTime()))throw new Error("Choose a valid start date and time.");
  return d.toISOString();
 }
@@ -14,13 +16,14 @@ export default function JobCreate(){
  const router=useRouter();
  const [expanded,setExpanded]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState("");
  const [title,setTitle]=useState(""),[venue,setVenue]=useState(""),[address,setAddress]=useState(""),[starts,setStarts]=useState(""),[ends,setEnds]=useState("");
+ const [timeZone,setTimeZone]=useState("");
  const [flows,setFlows]=useState<DepartmentFlow[]>([]);
  const [rate,setRate]=useState(""),[rateBasis,setRateBasis]=useState<RateBasis>("hourly"),[details,setDetails]=useState(""),[status,setStatus]=useState<"draft"|"open">("draft");
  async function submit(event:FormEvent){
   event.preventDefault();setError("");setBusy(true);
   try{
    if(!title.trim())throw new Error("A job title is required.");
-   const from=localIso(starts),to=ends?localIso(ends):null;
+   const from=localIso(starts,timeZone),to=ends?localIso(ends,timeZone):null;
    if(to&&new Date(to)<=new Date(from))throw new Error("End time must be after start time.");
    const db=browserDb();
    const {data:{user},error:authError}=await db.auth.getUser();
@@ -29,7 +32,7 @@ export default function JobCreate(){
    if(profile?.role!=="admin")throw new Error("Only administrators can create jobs.");
    const {data:created,error:insertError}=await db.from("jobs").insert({
     title:title.trim(),venue:venue.trim(),address:address.trim(),signal_flow:flows,starts_at:from,ends_at:to,
-    rate:rate.trim(),rate_basis:rateBasis,details:details.trim(),status,created_by:user.id
+    time_zone:timeZone,rate:rate.trim(),rate_basis:rateBasis,details:details.trim(),status,created_by:user.id
    }).select("id").single();
    if(insertError)throw insertError;
    router.push("/admin/jobs/"+created.id);
@@ -45,11 +48,12 @@ export default function JobCreate(){
    <label className="block"><span className="label">Job / show title *</span><input required maxLength={160} placeholder="Annual sales conference — General Session" value={title} onChange={e=>setTitle(e.target.value)}/></label>
    <label className="block"><span className="label">Venue / location</span><input maxLength={250} placeholder="Boston Convention & Exhibition Center" value={venue} onChange={e=>setVenue(e.target.value)}/></label>
    <label className="block"><span className="label">Venue address</span><input maxLength={500} autoComplete="street-address" placeholder="Street address, city, state, ZIP" value={address} onChange={e=>setAddress(e.target.value)}/></label>
+   <TimeZoneSelect value={timeZone} onChange={setTimeZone} disabled={busy}/>
    <div className="grid sm:grid-cols-2 gap-3">
     <label className="block"><span className="label">Start date & time *</span><input required type="datetime-local" value={starts} onChange={e=>setStarts(e.target.value)}/></label>
     <label className="block"><span className="label">End date & time</span><input type="datetime-local" value={ends} onChange={e=>setEnds(e.target.value)}/></label>
    </div>
-   <p className="muted text-xs">Times are entered in your device's local time zone.</p>
+   <p className="muted text-xs">Enter call times in the selected venue time zone.</p>
    <label className="block"><span className="label">Pay structure *</span>
     <select value={rateBasis} onChange={e=>setRateBasis(e.target.value as RateBasis)}>
      <option value="hourly">Hourly — 1.5× OT after 10 hours</option>
