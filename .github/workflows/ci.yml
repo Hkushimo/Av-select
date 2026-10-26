@@ -20,7 +20,7 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: Test scheduling and database billing rules
         run: npm test
-      - name: Build Next.js
+      - name: Build Next.js and package the Cloudflare Worker
         run: npm run build
-      - name: Verify Cloudflare OpenNext packaging
-        run: npx opennextjs-cloudflare build
+      - name: Validate the deployable Wrangler bundle without uploading
+        run: npx wrangler deploy --dry-run

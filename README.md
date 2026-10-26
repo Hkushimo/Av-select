@@ -26,6 +26,10 @@ Keep all secret keys out of Git. Configure environment variables in deployment s
 ## Cloudflare deployment
 The Cloudflare Worker uses OpenNext. The build and runtime environments both require `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`. After adding or changing build variables, start a new GitHub-triggered build so Next.js includes them.
 
+Cloudflare Workers Builds should use `npm run build`. This runs OpenNext, which calls `npm run build:next` for the framework build and then produces `.open-next/worker.js` and `.open-next/assets`. The separate `buildCommand` in `open-next.config.ts` prevents recursion. Use `npm run build:next` only when you specifically need the plain Next.js output.
+
+PR builds can use `npx wrangler preview` as their deploy command; the required empty `previews` block is included in `wrangler.jsonc`. Configure preview runtime variables/secrets in Cloudflare's Previews Base settings using staging resources; production settings are not automatically inherited. Validate packaging locally with `npm run build` followed by `npx wrangler deploy --dry-run` (no upload). Production deployment remains a separate action.
+
 ## Invitation deployment
 Cloudflare auto-deploys changes from the main branch. The admin dashboard generates a 7-day, single-use link with no email address required. Android's native share sheet lets the admin choose any messaging app. The recipient enters their own email/password on `/invite` and completes onboarding. Run `supabase/migrations/002_share_invites.sql` in Supabase SQL Editor before testing. The server API requires the `SUPABASE_SECRET_KEY` Cloudflare runtime secret. Supabase Auth email/password sign-in must be enabled; the platform still does not expose public technician registration.
 
