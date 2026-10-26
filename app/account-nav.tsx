@@ -58,10 +58,10 @@ export default function AccountNav(){
     <img src="/av-select-logo.png" alt="AV Select" width={150} height={50} className="h-9 w-auto max-w-[140px] object-contain"/>
    </Link>
    <div className="hidden sm:flex items-center gap-2">
-    {email?<>{isTech&&<><Link className="pill" href="/dashboard">Dashboard</Link><JobActivityBadge role="technician" count={unread}/><Link className="pill" href="/billing">Billing</Link><Link className="pill" href="/profile">My profile</Link></>}
-     {isAdmin&&<><Link className="pill" href="/admin">Dashboard</Link><Link className="pill" href="/admin/jobs">Jobs</Link><Link className="pill" href="/admin/invoices">Invoices</Link><JobActivityBadge role="admin" count={unread}/></>}
+    {email?<>{isTech&&<><Link className="pill" aria-current={pathname==="/dashboard"?"page":undefined} href="/dashboard">Dashboard</Link><JobActivityBadge role="technician" count={unread}/><Link className="pill" aria-current={pathname==="/billing"?"page":undefined} href="/billing">Billing</Link><Link className="pill" aria-current={pathname==="/profile"?"page":undefined} href="/profile">My profile</Link></>}
+     {isAdmin&&<><Link className="pill" aria-current={pathname==="/admin"?"page":undefined} href="/admin">Dashboard</Link><Link className="pill" aria-current={pathname==="/admin/jobs"?"page":undefined} href="/admin/jobs">Jobs</Link><Link className="pill" aria-current={pathname==="/admin/invoices"?"page":undefined} href="/admin/invoices">Invoices</Link><JobActivityBadge role="admin" count={unread}/></>}
      <button type="button" className="pill" onClick={logout}>Log out</button></>:
-     <Link className="pill" href="/login">Sign in</Link>}
+     <Link className="pill" aria-current={pathname==="/login"?"page":undefined} href="/login">Sign in</Link>}
    </div>
    <button type="button" className="sm:hidden relative flex h-10 w-11 shrink-0 items-center justify-center rounded-lg border border-slate-600 text-slate-100 hover:bg-slate-800"
     aria-label={open?"Close menu":"Open menu"} aria-expanded={open} aria-controls="mobile-account-menu" onClick={()=>setOpen(v=>!v)}>

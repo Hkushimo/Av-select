@@ -76,10 +76,10 @@ export default function InviteForm(){
  const format=(v:string)=>new Date(v).toLocaleString("en-US",{dateStyle:"medium",timeStyle:"short"});
  return <section className="rounded-xl border border-slate-700/70 bg-[#121a29] p-3 sm:p-4" id="invite-technician">
   <div className="grid grid-cols-2 gap-2">
-   <button type="button" className={"flex min-h-12 items-center justify-center gap-2 rounded-lg px-3 py-3 text-sm font-semibold "+(panel==="create"?"bg-blue-600 text-white":"bg-blue-600/15 border border-blue-500/40 text-blue-200 hover:bg-blue-600/25")} onClick={()=>panel==="create"?setPanel(null):showCreate()}>
+   <button type="button" className="button-secondary" aria-expanded={panel==="create"} onClick={()=>panel==="create"?setPanel(null):showCreate()}>
     <span aria-hidden="true" className="text-lg leading-none">+</span> Create invite
    </button>
-   <button type="button" className={"flex min-h-12 items-center justify-center gap-2 rounded-lg px-3 py-3 text-sm font-semibold "+(panel==="active"?"bg-blue-600 text-white":"border border-slate-600 text-slate-200 hover:bg-slate-800")} onClick={()=>panel==="active"?setPanel(null):showActive()}>
+   <button type="button" className="button-secondary" aria-expanded={panel==="active"} onClick={()=>panel==="active"?setPanel(null):showActive()}>
     <AppIcon name="activity" size={17}/> Active invites
    </button>
   </div>

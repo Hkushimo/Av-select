@@ -19,9 +19,9 @@ export default async function Admin(){
   db.from("technician_invoices").select("id,invoice_number,from_name,job_title,issued_on,total,billed_total").order("created_at",{ascending:false}).limit(5),
  ]);
  return <main className="mx-auto max-w-5xl px-4 py-5 sm:px-6 space-y-5">
-  <div className="flex flex-wrap items-end justify-between gap-4">
+  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
    <PageHeading eyebrow="Dispatch" title="Your staffing desk" description="Keep the next call moving. Review responses, confirm crew, and follow up on offers."/>
-   <div className="flex flex-wrap gap-2"><Link className="primary inline-flex min-h-11 items-center text-sm" href="/admin/jobs">Create / manage jobs</Link><a href="#your-crew" className="pill inline-flex min-h-11 items-center">Find a technician ↓</a></div>
+   <div className="flex flex-wrap gap-2 sm:shrink-0"><Link className="primary inline-flex min-h-11 items-center text-sm" href="/admin/jobs">Manage jobs</Link><a href="#your-crew" className="pill inline-flex min-h-11 items-center">Find a technician ↓</a></div>
   </div>
   <DispatchOverview jobs={(jobs||[]).slice(0,50)} invoices={invoices||[]} now={now} loadError={!!jobsError} invoiceError={!!invoiceError} truncated={(jobs?.length||0)>50}/>
   <section id="your-crew" className="space-y-4 border-t border-slate-700 pt-6 scroll-mt-24">
