@@ -11,14 +11,14 @@ import type {RateBasis} from "@/lib/invoicing";
 
 type JobStatus="draft"|"open"|"closed";
 type Tech=RosterTech;
-type Offer={id:string;technician_id:string;status:string;offer_position:string;offer_rate:string};
+type Offer={id:string;technician_id:string;status:string;offer_position:string;offer_rate:string;return_call_flat_amount:number|null};
 type Requirement={skill:string;min_level:number;required:boolean};
-export default function ManageJob({jobId,initialStatus,rateBasis,timeZone,startsAt,endsAt,technicians,ratings,offers,requirements,mode}:{
- jobId:string;initialStatus:JobStatus;rateBasis:RateBasis;timeZone:string|null;startsAt:string;endsAt:string|null;technicians:Tech[];ratings:RosterRating[];offers:Offer[];requirements:Requirement[];mode:"setup"|"staffing";
+export default function ManageJob({jobId,initialStatus,rateBasis,timeZone,startsAt,endsAt,technicians,ratings,offers,requirements,mode,invoicedOfferIds=[]}:{
+ jobId:string;initialStatus:JobStatus;rateBasis:RateBasis;timeZone:string|null;startsAt:string;endsAt:string|null;technicians:Tech[];ratings:RosterRating[];offers:Offer[];requirements:Requirement[];mode:"setup"|"staffing";invoicedOfferIds?:string[];
 }){
  const router=useRouter();
  const [status,setStatus]=useState<JobStatus>(initialStatus),[payBasis,setPayBasis]=useState<RateBasis>(rateBasis),[busy,setBusy]=useState(false);
- const [selected,setSelected]=useState<string[]>([]),[offerDetails,setOfferDetails]=useState<Record<string,{position:string;rate:string}>>({}),[error,setError]=useState(""),[notice,setNotice]=useState("");
+ const [selected,setSelected]=useState<string[]>([]),[offerDetails,setOfferDetails]=useState<Record<string,{position:string;rate:string;returnFlat:string}>>({}),[error,setError]=useState(""),[notice,setNotice]=useState("");
  const [skill,setSkill]=useState(""),[level,setLevel]=useState(3),[required,setRequired]=useState(true);
  const [existingOffers,setExistingOffers]=useState(offers);
  const [zone,setZone]=useState(timeZone||"UTC");
@@ -98,13 +98,18 @@ export default function ManageJob({jobId,initialStatus,rateBasis,timeZone,starts
  }
  async function sendOffers(){
   if(!selected.length||status!=="open")return;
-  const proposed=selected.map(id=>({id,position:(offerDetails[id]?.position||"").trim(),amount:Number(offerDetails[id]?.rate||"")}));
+  const proposed=selected.map(id=>({id,position:(offerDetails[id]?.position||"").trim(),amount:Number(offerDetails[id]?.rate||""),returnFlat:(offerDetails[id]?.returnFlat||"").trim()}));
   if(proposed.some(o=>!o.position||!Number.isFinite(o.amount)||o.amount<=0||o.amount>100000||Math.abs(o.amount*100-Math.round(o.amount*100))>0.000001)){
    setError("Choose a position and enter a valid agreed amount for every selected technician.");return;
   }
-  const payload=proposed.map(o=>({job_id:jobId,technician_id:o.id,status:"pending",offer_position:o.position,offer_rate:"$"+o.amount.toFixed(2)+(payBasis==="day"?"/day":"/hr")}));
+  if(proposed.some(o=>o.returnFlat!==""&&(!Number.isFinite(Number(o.returnFlat))||Number(o.returnFlat)<=0||Number(o.returnFlat)>100000||Math.abs(Number(o.returnFlat)*100-Math.round(Number(o.returnFlat)*100))>0.000001))){
+   setError("Enter a valid positive return-call amount or leave it blank.");return;
+  }
+  const payload=proposed.map(o=>({job_id:jobId,technician_id:o.id,status:"pending",offer_position:o.position,
+   offer_rate:"$"+o.amount.toFixed(2)+(payBasis==="day"?"/day":"/hr"),
+   return_call_flat_amount:o.returnFlat===""?null:Number(o.returnFlat)}));
   setBusy(true);setError("");setNotice("");
-  const {data,error}=await browserDb().from("job_offers").insert(payload).select("id,technician_id,status,offer_position,offer_rate");
+  const {data,error}=await browserDb().from("job_offers").insert(payload).select("id,technician_id,status,offer_position,offer_rate,return_call_flat_amount");
   if(error)setError(error.message);
   else{setExistingOffers(items=>[...items,...(data||[])]);setSelected([]);setOfferDetails({});setNotice("Offers saved with individual positions and rates.");router.refresh()}
   setBusy(false);
@@ -116,6 +121,23 @@ export default function ManageJob({jobId,initialStatus,rateBasis,timeZone,starts
   if(error)setError(error.message);
   else{setExistingOffers(items=>items.map(o=>o.id===offer.id?{...o,status:"cancelled"}:o));router.refresh()}
   setBusy(false);
+ }
+ async function saveReturnCall(offer:Offer,amount:number|null):Promise<boolean>{
+  setBusy(true);setError("");setNotice("");
+  try{
+   const {data,error}=await browserDb().from("job_offers")
+    .update({return_call_flat_amount:amount}).eq("id",offer.id).eq("job_id",jobId)
+    .select("id,return_call_flat_amount").maybeSingle();
+   if(error)throw error;
+   if(!data)throw new Error("Offer changed. Refresh and try again.");
+   setExistingOffers(items=>items.map(o=>o.id===offer.id?{...o,return_call_flat_amount:data.return_call_flat_amount}:o));
+   setNotice(amount===null?"Return-call agreement removed.":"Return-call amount approved for this booking.");
+   router.refresh();
+   return true;
+  }catch(err){
+   setError(err instanceof Error?err.message:"Could not save return-call agreement.");
+   return false;
+  }finally{setBusy(false);}
  }
  function toggle(id:string){setSelected(list=>list.includes(id)?list.filter(x=>x!==id):[...list,id])}
  return <div className="space-y-5">
@@ -162,7 +184,7 @@ export default function ManageJob({jobId,initialStatus,rateBasis,timeZone,starts
    </div>
   </details>
 </div>:<div className="space-y-5 scroll-mt-24" id="job-staffing">
-  <CrewBoard offers={existingOffers} technicians={technicians} busy={busy} onConfirm={o=>updateBooking(o,"confirmed")} onUndo={o=>updateBooking(o,"accepted")} onRelease={release}/>
+  <CrewBoard offers={existingOffers} technicians={technicians} busy={busy} onConfirm={o=>updateBooking(o,"confirmed")} onUndo={o=>updateBooking(o,"accepted")} onRelease={release} onSaveReturn={saveReturnCall} invoicedOfferIds={invoicedOfferIds}/>
   {notice&&<p className="text-green-300 text-sm" role="status">{notice}</p>}
   {error&&<p className="text-red-400 text-sm" role="alert">{error}</p>}
   <details className="panel !p-4 sm:!p-5">
@@ -223,10 +245,16 @@ export default function ManageJob({jobId,initialStatus,rateBasis,timeZone,starts
        <span className="muted text-xs block break-words">{[locationText(t.city,t.state),t.roles?.slice(0,2).join(", ")].filter(Boolean).join(" · ")}{ratingFilter&&<span className="text-blue-300"> · {ratingFilter} {ratings.find(r=>r.technician_id===t.user_id&&r.skill===ratingFilter)?.level}/5</span>}</span></span>
      </label>
      {selected.includes(t.user_id)&&<div className="grid grid-cols-1 sm:grid-cols-2 gap-2 border-t border-slate-700 pt-3">
-      <label className="block"><span className="label">Offered position *</span><select value={offerDetails[t.user_id]?.position||""} onChange={e=>setOfferDetails(prev=>({...prev,[t.user_id]:{position:e.target.value,rate:prev[t.user_id]?.rate||""}}))}>
+      <label className="block"><span className="label">Offered position *</span><select value={offerDetails[t.user_id]?.position||""} onChange={e=>setOfferDetails(prev=>({...prev,[t.user_id]:{position:e.target.value,rate:prev[t.user_id]?.rate||"",returnFlat:prev[t.user_id]?.returnFlat||""}}))}>
        <option value="">Choose a position</option>{(t.roles||[]).map(role=><option key={role} value={role}>{role}</option>)}<option value="Other / special assignment">Other / special assignment</option>
       </select></label>
-      <label className="block"><span className="label">Agreed {payBasis==="day"?"day":"hourly"} rate (USD) *</span><input type="number" min="0.01" max="100000" step="0.01" inputMode="decimal" placeholder={payBasis==="day"?"e.g. 600.00":"e.g. 50.00"} value={offerDetails[t.user_id]?.rate||""} onChange={e=>setOfferDetails(prev=>({...prev,[t.user_id]:{position:prev[t.user_id]?.position||"",rate:e.target.value}}))}/></label>
+      <label className="block"><span className="label">Agreed {payBasis==="day"?"day":"hourly"} rate (USD) *</span><input type="number" min="0.01" max="100000" step="0.01" inputMode="decimal" placeholder={payBasis==="day"?"e.g. 600.00":"e.g. 50.00"} value={offerDetails[t.user_id]?.rate||""} onChange={e=>setOfferDetails(prev=>({...prev,[t.user_id]:{position:prev[t.user_id]?.position||"",rate:e.target.value,returnFlat:prev[t.user_id]?.returnFlat||""}}))}/></label>
+      <label className="block sm:col-span-2"><span className="label">One-time return-call flat amount (USD, optional)</span>
+       <input type="number" min="0.01" max="100000" step="0.01" inputMode="decimal" placeholder="e.g. 240.00 · leave blank for normal overtime"
+        value={offerDetails[t.user_id]?.returnFlat||""}
+        onChange={e=>setOfferDetails(prev=>({...prev,[t.user_id]:{position:prev[t.user_id]?.position||"",rate:prev[t.user_id]?.rate||"",returnFlat:e.target.value}}))}/>
+       <span className="muted text-xs block mt-1">Applies once per invoice if a separate return-call period is logged, replacing standard pay for that period.</span>
+      </label>
      </div>}
     </div>)}</div>}
    <button type="button" className="primary w-full" disabled={busy||status!=="open"||!selected.length} onClick={sendOffers}>

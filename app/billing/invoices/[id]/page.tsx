@@ -23,7 +23,7 @@ export default async function InvoiceDetails({params}:Props){
  const invoice=data as InvoiceRow;
  const basis:RateBasis=invoice.billing_basis==="day"?"day":"hourly";
  const itemized=(invoice.billing_basis==="day"||invoice.billing_basis==="hourly")&&Array.isArray(invoice.work_days)&&invoice.work_days.length>0&&Number(invoice.agreed_rate)>0;
- const breakdown=itemized?calculateInvoiceDays(basis,Number(invoice.agreed_rate),invoice.work_days||[],invoice.overtime_policy==="after_10_1_5"):null;
+ const breakdown=itemized?calculateInvoiceDays(basis,Number(invoice.agreed_rate),invoice.work_days||[],invoice.overtime_policy==="after_10_1_5",invoice.return_call_flat_amount===null||invoice.return_call_flat_amount===undefined?null:Number(invoice.return_call_flat_amount)):null;
  const total=Number(invoice.billed_total??invoice.total);
  const workDate=formatJobTime(invoice.job_starts_at,invoice.job_time_zone||null);
  return <main className="invoice-page mx-auto max-w-3xl px-4 py-6 space-y-5">
@@ -63,7 +63,7 @@ export default async function InvoiceDetails({params}:Props){
     <p className="font-semibold">{invoice.job_title}</p>
     {invoice.job_position&&<p>{invoice.job_position}</p>}
     <p className="text-slate-600">{invoice.job_venue||"Venue not specified"} · {workDate} · {invoice.job_time_zone||"UTC (original venue zone not recorded)"}</p>
-    {itemized&&<p className="text-xs text-slate-500 mt-1">{basis==="day"?"Day rate · 10 hours included · overtime at 1.5× after 10 billable hours":invoice.overtime_policy==="after_10_1_5"?"Hourly rate · 1.5× overtime after 10 billable hours":"Hourly rate · actual billable hours"}</p>}
+    {itemized&&<p className="text-xs text-slate-500 mt-1">{basis==="day"?"Day rate · 10 hours included · standard overtime at 1.5× after 10 billable hours":invoice.overtime_policy==="after_10_1_5"?"Hourly rate · 1.5× overtime after 10 billable hours":"Hourly rate · actual billable hours"}</p>}
     {invoice.job_address&&<p className="text-slate-600 break-words">{invoice.job_address}</p>}
    </div>
    <div className="overflow-x-auto">
@@ -77,7 +77,12 @@ export default async function InvoiceDetails({params}:Props){
        <td colSpan={4} className="!p-0">
         <table className="w-full text-sm table-fixed"><tbody>
          <tr>
-          <td className="py-3 pr-2 break-words w-[43%]">{dateOnly(day.date)}<span className="block text-xs text-slate-500">{[day.timeIn&&day.timeOut?day.timeIn+" – "+day.timeOut+(day.timeOut<day.timeIn?" (+1 day)":""):null,day.hours.toFixed(2)+"h worked",day.lunchDeducted?"1h lunch deducted":null].filter(Boolean).join(" · ")}</span></td>
+          <td className="py-3 pr-2 break-words w-[43%]">{dateOnly(day.date)}
+           {day.shifts?.length?day.shifts.map((period,index)=><span key={index} className="block text-xs text-slate-500 mt-1">
+            {period.time_in} – {period.time_out}{period.time_out<period.time_in?" (+1 day)":""} · {period.hours.toFixed(2)}h
+            {period.pay_type==="return_flat"?" · Flat return call":""}
+           </span>):<span className="block text-xs text-slate-500">{day.timeIn&&day.timeOut?day.timeIn+" – "+day.timeOut+(day.timeOut<day.timeIn?" (+1 day)":""):""}</span>}
+           <span className="block text-xs text-slate-500 mt-1">{day.hours.toFixed(2)}h actually worked{day.lunchDeducted?" · 1h lunch deducted":""}</span></td>
           <td className="py-3 px-2 text-right w-[16%]">{basis==="day"?"1 day":day.regularHours.toFixed(2)+" hrs"}</td>
           <td className="py-3 px-2 text-right w-[20%]">{currency(Number(invoice.agreed_rate))}/{basis==="day"?"day":"hr"}</td>
           <td className="py-3 pl-2 text-right font-semibold w-[21%]">{currency(day.regular)}</td>
@@ -90,6 +95,12 @@ export default async function InvoiceDetails({params}:Props){
           <td className="pb-3 px-2 text-right">{day.otHours.toFixed(2)} hrs</td>
           <td className="pb-3 px-2 text-right">{currency(basis==="day"?Number(invoice.agreed_rate)/10*1.5:Number(invoice.agreed_rate)*1.5)}/hr</td>
           <td className="pb-3 pl-2 text-right font-semibold">{currency(day.overtime)}</td>
+         </tr>}
+         {day.flatReturnAmount>0&&<tr className="text-slate-700">
+          <td className="pb-3 pr-2">Approved flat return call <span className="block text-xs text-slate-500">Replaces standard pay for the marked return period</span></td>
+          <td className="pb-3 px-2 text-right">{day.flatReturnHours.toFixed(2)} hrs</td>
+          <td className="pb-3 px-2 text-right">Flat</td>
+          <td className="pb-3 pl-2 text-right font-semibold">{currency(day.flatReturnAmount)}</td>
          </tr>}
         </tbody></table>
        </td>

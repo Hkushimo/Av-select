@@ -77,3 +77,28 @@ Apply `supabase/migrations/018_job_time_and_pay_terms.sql` after 017 **before de
 - Invoice submission verifies venue-local work dates are inside the job's date window, rejects future work/unfinished clock-outs, sets the issue date on the server, and requires the due date to be on or after it. Billing uses the frozen offer rate and basis. Additional work dates require an admin to extend the schedule first; overtime on a valid date remains supported. Existing duplicate-date, clock-time, ownership, completion, and one-invoice-per-offer checks remain in force.
 
 Validation: `npm ci`, `npm test`, `npm run build`, and `npx opennextjs-cloudflare build`. Tests run the actual scheduling/billing migrations in embedded PostgreSQL (PGlite), using a minimal Auth fixture and excluding the unrelated Storage migration. They do not access production Supabase. PGlite is single-session: before rollout, also exercise two concurrent admin sessions against staging (send offer while changing pay basis; confirm while editing dates). Verify no committed offer has terms inconsistent with the job and that one conflicting operation fails. Test technician invoice submission and calendar dates with browsers in different device zones.
+
+## Split shifts and approved return-call payments (migration 019)
+
+Apply `supabase/migrations/019_split_shift_return_calls.sql` in Supabase SQL Editor after migration 018 **before** deploying the related app code. This migration does not change previously saved invoices.
+
+The technician invoice form supports multiple on-clock work periods per venue-local job date, including an overnight return call. Off-clock gaps are not paid work. The existing 1-hour lunch deduction applies only if explicitly selected and actual worked hours exceed 10; off-clock breaks between separate periods are not a lunch deduction.
+
+By default, split work periods share the same daily 10-hour threshold: day-rate jobs pay one full day minimum plus 1.5× overtime after 10 worked billable hours; hourly jobs bill normal hours then 1.5× overtime. The day rate is **never applied twice** for a split shift on the same date.
+
+An administrator may approve an optional **one-time flat return-call amount** on an offer, or add it to an existing booking before invoice submission. The tech can then mark one *additional* work period as a flat return call. This replaces ordinary pay/OT for that period, rather than stacking with it. The server calculates invoice totals from frozen agreed terms. The admin cannot edit a return-call agreement after its invoice is saved.
+
+Example: `10:00–18:00` (8 hours, $400 guaranteed day rate) and `21:00–02:00` (5 hours, $240 approved return call) = **13 worked hours, $640 total**. Without a flat return-call agreement, the same shifts yield $400 + 3 OT hours × $60 = $580. Actual pay terms must match what the parties agreed and applicable laws; use this setting only for legitimately agreed fixed return-call compensation.
+
+### Important limits
+
+- One flat return-call work period per invoice. Additional periods use ordinary shared daily rate/overtime rules.
+- Up to 8 work periods per work date; no overlapping time ranges, including when a period ends the next day.
+- New invoices validate work dates against the event dates in the **venue's saved time zone**.
+- Older single-period invoices remain readable with their original amounts and historical overtime rules.
+- This does not automatically infer off-clock breaks from a job's overall start/end time. For multi-period jobs, the estimated payout is shown as pending until actual work periods are recorded.
+
+### Regression testing
+
+`npm test` includes split-shift pay calculations and Postgres-based SQL tests, including tampered client totals, unapproved return-call amounts, overlapping periods, and historical single-shift invoices.
+

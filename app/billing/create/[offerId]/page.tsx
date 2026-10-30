@@ -16,7 +16,7 @@ export default async function CreateInvoice({params}:Props){
  const {offerId}=await params;
  if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(offerId))notFound();
  const [{data:offer,error},{data:tech},{data:existing}]=await Promise.all([
-  db.from("job_offers").select("id,status,offer_position,offer_rate,agreed_basis,agreed_amount,jobs(title,venue,address,time_zone,starts_at,ends_at,rate,rate_basis,status)")
+  db.from("job_offers").select("id,status,offer_position,offer_rate,agreed_basis,agreed_amount,return_call_flat_amount,jobs(title,venue,address,time_zone,starts_at,ends_at,rate,rate_basis,status)")
    .eq("id",offerId).eq("technician_id",user.id).maybeSingle(),
   db.from("technicians").select("full_name,phone,city,state").eq("user_id",user.id).maybeSingle(),
   db.from("technician_invoices").select("id").eq("offer_id",offerId).eq("technician_id",user.id).maybeSingle()
@@ -45,7 +45,7 @@ export default async function CreateInvoice({params}:Props){
     <p className="muted text-xs">Ask the administrator to release and reissue the booking with valid agreed pay terms.</p>
     <Link href="/offers" className="text-blue-300 text-sm font-semibold">Back to My Schedule →</Link>
    </section>:<InvoiceForm offerId={offer.id} job={job} position={offer.offer_position||""}
-    originalRate={rateLabel} rateBasis={rateBasis} agreedRate={agreedRate}
+    originalRate={rateLabel} rateBasis={rateBasis} agreedRate={agreedRate} returnCallFlatAmount={offer.return_call_flat_amount===null?null:Number(offer.return_call_flat_amount)}
     technician={{name:tech?.full_name||"",email:user.email||"",phone:tech?.phone||"",location:fromLocation}}/>}
  </main>;
 }

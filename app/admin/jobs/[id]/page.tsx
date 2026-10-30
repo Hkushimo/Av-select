@@ -19,7 +19,7 @@ export default async function JobDetails({params}:Props){
  const [{data:job,error},{data:technicians},{data:offers},{data:requirements},{data:ratings}]=await Promise.all([
   db.from("jobs").select("id,title,venue,address,signal_flow,time_zone,starts_at,ends_at,rate,rate_basis,details,status").eq("id",id).maybeSingle(),
   db.from("technicians").select("user_id,full_name,city,state,travel,roles,equipment,avatar_path").order("full_name"),
-  db.from("job_offers").select("id,technician_id,status,offer_position,offer_rate").eq("job_id",id).neq("status","declined").order("created_at"),
+  db.from("job_offers").select("id,technician_id,status,offer_position,offer_rate,return_call_flat_amount").eq("job_id",id).neq("status","declined").order("created_at"),
   db.from("job_requirements").select("skill,min_level,required").eq("job_id",id).order("skill"),
   db.from("skill_ratings").select("technician_id,skill,level")
  ]);
@@ -43,7 +43,7 @@ export default async function JobDetails({params}:Props){
    <a className="pill text-blue-300" href="#job-invoices">Tech invoices</a>
   </nav>
   <ManageJob mode="staffing" jobId={job.id} initialStatus={status} rateBasis={(job.rate_basis==="day"?"day":"hourly") as RateBasis}
-    timeZone={job.time_zone} startsAt={job.starts_at} endsAt={job.ends_at} technicians={technicians||[]} ratings={ratings||[]} offers={offers||[]} requirements={requirements||[]}/>
+    timeZone={job.time_zone} startsAt={job.starts_at} endsAt={job.ends_at} technicians={technicians||[]} ratings={ratings||[]} offers={offers||[]} requirements={requirements||[]} invoicedOfferIds={(invoiceResult.data||[]).map(i=>i.offer_id).filter((id):id is string=>!!id)}/>
   <ManageJob mode="setup" jobId={job.id} initialStatus={status} rateBasis={(job.rate_basis==="day"?"day":"hourly") as RateBasis}
     timeZone={job.time_zone} startsAt={job.starts_at} endsAt={job.ends_at} technicians={technicians||[]} ratings={ratings||[]} offers={offers||[]} requirements={requirements||[]}/>
   <div id="job-production" className="space-y-3 scroll-mt-24">

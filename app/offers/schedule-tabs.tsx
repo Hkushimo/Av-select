@@ -2,7 +2,7 @@
 import {jobDate,jobWorkDates,formatJobTime,zoneLabel} from "@/lib/job-time";
 import {useMemo,useState} from "react";
 import Link from "next/link";
-import {finishedAt,displayOfferRate} from "@/lib/invoicing";
+import {finishedAt,displayOfferRate,currency} from "@/lib/invoicing";
 import {estimateOfferPayout} from "@/lib/payout-estimate";
 import {bookingWindowsOverlap} from "@/lib/booking-conflicts";
 import MarkActivitySeen from "@/app/mark-activity-seen";
@@ -11,7 +11,7 @@ import AppIcon from "@/app/app-icon";
 import {FlowTabs,type DepartmentFlow} from "@/app/admin/jobs/department-flow";
 
 type Job={time_zone:string|null;title:string;venue:string;address?:string;signal_flow?:DepartmentFlow[];starts_at:string;ends_at:string|null;rate:string;rate_basis:"hourly"|"day";details:string;status:string};
-export type ScheduleOffer={id:string;status:string;offer_position:string;offer_rate:string;invoice_id:string|null;job:Job|null};
+export type ScheduleOffer={id:string;status:string;offer_position:string;offer_rate:string;return_call_flat_amount:number|null;invoice_id:string|null;job:Job|null};
 const dayKey=(date:Date)=>[date.getFullYear(),String(date.getMonth()+1).padStart(2,"0"),String(date.getDate()).padStart(2,"0")].join("-");
 
 function OfferCard({offer,archived=false,conflictKind=null}:{offer:ScheduleOffer;archived?:boolean;conflictKind?:"booked"|"tentative"|null}){
@@ -24,7 +24,7 @@ function OfferCard({offer,archived=false,conflictKind=null}:{offer:ScheduleOffer
  const time=(d:Date)=>d.toLocaleTimeString("en-US",{timeZone:job?.time_zone||"UTC",hour:"numeric",minute:"2-digit",timeZoneName:"short"});
  const rawPay=offer.offer_rate||job?.rate||"";
  const pay=displayOfferRate(rawPay,job?.rate_basis==="day"?"day":"hourly");
- const estimate=!archived?estimateOfferPayout(job,offer.offer_rate):null;
+ const estimate=!archived&&offer.return_call_flat_amount===null?estimateOfferPayout(job,offer.offer_rate):null;
  return <article className={"panel !p-4 sm:!p-5 space-y-4 "+(archived?"!bg-[#101722] !border-slate-800 text-slate-400":"")}>
   <div className="flex items-start justify-between gap-3">
    <div className="min-w-0">
@@ -40,7 +40,11 @@ function OfferCard({offer,archived=false,conflictKind=null}:{offer:ScheduleOffer
     Based on {estimate.scheduledHours.toFixed(2)} scheduled hours{estimate.overtimeHours>0?", including "+estimate.overtimeHours.toFixed(2)+" OT hrs at 1.5×":""}. Before lunch deductions or schedule changes.
    </p>
   </div>}
-  {!archived&&!estimate&&offer.status==="pending"&&<p className="muted text-xs">
+  {offer.return_call_flat_amount!==null&&<div className="rounded-xl border border-blue-500/30 bg-blue-500/10 px-3 py-3 space-y-1">
+   <p className="text-blue-200 text-sm font-semibold">Approved one-time return call · {currency(Number(offer.return_call_flat_amount))}</p>
+   <p className="muted text-xs">If a separate return work period is needed, this flat payment replaces ordinary pay for that period. Total payout depends on the actual work periods.</p>
+  </div>}
+  {!archived&&!estimate&&offer.return_call_flat_amount===null&&offer.status==="pending"&&<p className="muted text-xs">
    Payout estimate pending · Requires a defined single-shift schedule and agreed rate.
   </p>}
   <div className="rounded-xl border border-slate-700/70 bg-slate-900/40 divide-y divide-slate-700/70">

@@ -3,44 +3,70 @@ import {jobDate,jobWorkDates} from "@/lib/job-time";
 import {useState,type FormEvent} from "react";
 import {useRouter} from "next/navigation";
 import {browserDb} from "@/lib/supabase";
-import {currency,calculateInvoiceDays,DAY_INCLUDED_HOURS,DAY_OT_MULTIPLIER,shiftHours,type RateBasis,type InvoiceWorkDay} from "@/lib/invoicing";
+import {currency,calculateInvoiceDays,DAY_INCLUDED_HOURS,DAY_OT_MULTIPLIER,shiftHours,validateWorkPeriods,type RateBasis,type InvoiceWorkDay,type InvoiceShift} from "@/lib/invoicing";
 import AppIcon from "@/app/app-icon";
 
 type JobInfo={time_zone:string|null;title:string;venue:string;address:string;starts_at:string;ends_at:string|null;rate:string;rate_basis:RateBasis;status:string};
 type TechnicianInfo={name:string;email:string;phone:string;location:string};
-type DateEntry={date:string;timeIn:string;timeOut:string;lunch_taken:boolean};
+type ShiftEntry={timeIn:string;timeOut:string;payType:"standard"|"return_flat"};
+type DateEntry={date:string;shifts:ShiftEntry[];lunch_taken:boolean};
 function dateLabel(date:string){return new Date(date+"T12:00:00").toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"})}
-export default function InvoiceForm({offerId,job,position,originalRate,rateBasis,agreedRate,technician}:{
- offerId:string;job:JobInfo;position:string;originalRate:string;rateBasis:RateBasis;agreedRate:number;technician:TechnicianInfo;
+export default function InvoiceForm({offerId,job,position,originalRate,rateBasis,agreedRate,returnCallFlatAmount,technician}:{
+ offerId:string;job:JobInfo;position:string;originalRate:string;rateBasis:RateBasis;agreedRate:number;returnCallFlatAmount:number|null;technician:TechnicianInfo;
 }){
  const router=useRouter();
  const [billTo,setBillTo]=useState("");
  const [billToAddress,setBillToAddress]=useState("");
- const [entries,setEntries]=useState<DateEntry[]>(()=>jobWorkDates(job.starts_at,job.ends_at,job.time_zone||"UTC").map(date=>({date,timeIn:"",timeOut:"",lunch_taken:false})));
+ const [entries,setEntries]=useState<DateEntry[]>(()=>jobWorkDates(job.starts_at,job.ends_at,job.time_zone||"UTC").map(date=>({date,shifts:[{timeIn:"",timeOut:"",payType:"standard" as const}],lunch_taken:false})));
  const [notes,setNotes]=useState("");
  const [issuedOn]=useState(()=>jobDate(new Date(),job.time_zone));
  const [dueOn,setDueOn]=useState(()=>{const d=new Date(issuedOn+"T12:00:00Z");d.setUTCDate(d.getUTCDate()+30);return d.toISOString().slice(0,10)});
  const [busy,setBusy]=useState(false),[error,setError]=useState("");
 
- const allValid=entries.every(e=>!!e.date&&(
-  (!e.timeIn&&!e.timeOut)||(!!e.timeIn&&!!e.timeOut&&shiftHours(e.timeIn,e.timeOut)!==null)
- ));
- const workDays:InvoiceWorkDay[]=entries.flatMap(e=>{
-  if(!e.date||!e.timeIn||!e.timeOut)return [];
-  const hours=shiftHours(e.timeIn,e.timeOut);
-  return hours===null?[]:[{date:e.date,hours,time_in:e.timeIn,time_out:e.timeOut,lunch_taken:e.lunch_taken&&hours>10}];
+ const allValid=entries.every(entry=>entry.shifts.every((shift,index)=>{
+  if(!shift.timeIn&&!shift.timeOut)return index===0&&entry.shifts.length===1;
+  return !!shift.timeIn&&!!shift.timeOut&&shiftHours(shift.timeIn,shift.timeOut)!==null;
+ }));
+ const workDays:InvoiceWorkDay[]=entries.flatMap(entry=>{
+  const shifts:InvoiceShift[]=entry.shifts.flatMap(shift=>{
+   const hours=shiftHours(shift.timeIn,shift.timeOut);
+   return hours===null?[]:[{time_in:shift.timeIn,time_out:shift.timeOut,hours,pay_type:shift.payType}];
+  });
+  if(!shifts.length)return [];
+  return [{date:entry.date,shifts,
+   hours:Math.round(shifts.reduce((sum,shift)=>sum+shift.hours,0)*100)/100,
+   lunch_taken:entry.lunch_taken}];
  });
  const duplicateDates=new Set(entries.map(e=>e.date)).size!==entries.length;
- const calculation=calculateInvoiceDays(rateBasis,agreedRate,workDays);
- const validWork=allValid&&!duplicateDates&&workDays.length>0&&calculation.actualHours<=999;
+ const workError=validateWorkPeriods(workDays,returnCallFlatAmount);
+ const calculation=calculateInvoiceDays(rateBasis,agreedRate,workDays,true,returnCallFlatAmount);
+ const validWork=allValid&&!duplicateDates&&!workError&&workDays.length>0&&calculation.actualHours<=999
+  &&workDays.every(day=>day.hours<=24);
+ const flatCount=workDays.flatMap(day=>day.shifts||[]).filter(shift=>shift.pay_type==="return_flat").length;
 
  function updateEntry(index:number,patch:Partial<DateEntry>){
   setEntries(items=>items.map((entry,i)=>i===index?{...entry,...patch}:entry));
  }
+ function updateShift(dayIndex:number,shiftIndex:number,patch:Partial<ShiftEntry>){
+  setEntries(items=>items.map((entry,i)=>i===dayIndex?{
+   ...entry,shifts:entry.shifts.map((shift,j)=>j===shiftIndex?{...shift,...patch}:shift)
+  }:entry));
+ }
+ function addShift(index:number){
+  setEntries(items=>items.map((entry,i)=>i===index&&entry.shifts.length<8?{
+   ...entry,shifts:[...entry.shifts,{timeIn:"",timeOut:"",payType:"standard" as const}]
+  }:entry));
+ }
+ function removeShift(dayIndex:number,shiftIndex:number){
+  if(shiftIndex===0)return;
+  setEntries(items=>items.map((entry,i)=>i===dayIndex?{
+   ...entry,shifts:entry.shifts.filter((_,j)=>j!==shiftIndex)
+  }:entry));
+ }
  async function save(event:FormEvent){
   event.preventDefault();setError("");
   if(!billTo.trim()||!technician.name.trim()||!validWork||!dueOn){
-   setError("Enter the client and valid time-in/time-out on at least one day.");return;
+   setError(workError||"Enter the client and valid clock times on at least one work period.");return;
   }
   if(dueOn<issuedOn){setError("The due date cannot be before the invoice date.");return}
   setBusy(true);
@@ -96,45 +122,72 @@ export default function InvoiceForm({offerId,job,position,originalRate,rateBasis
     <span className="muted text-sm">Agreed {rateBasis==="day"?"day":"hourly"} rate</span>
     <span className="font-bold text-green-300 text-base">{currency(agreedRate)}{rateBasis==="day"?"/day":"/hr"}</span>
    </div>
-   <p className="muted text-xs">Check Lunch taken when applicable. One hour is deducted only if a shift exceeds 10 hours.</p>
+   {returnCallFlatAmount!==null&&<p className="text-green-300 text-xs">
+    Approved one-time return-call payment: {currency(returnCallFlatAmount)}. Select this payment type for one additional work period only.
+   </p>}
+   <p className="muted text-xs">Add each on-clock period separately. The gap between clock-out and the next clock-in is unpaid and is never included in hours worked.</p>
+   <p className="muted text-xs">Lunch taken is a separate 1-hour deduction only when the day's actual worked hours exceed 10. Do not check it for an already-unpaid split between work periods.</p>
    <p className="muted text-xs">{rateBasis==="day"?
-    `Each worked day is billed at the full 10-hour day rate. After ${DAY_INCLUDED_HOURS} hours on a single day, overtime is ${DAY_OT_MULTIPLIER}× the hourly equivalent. Enter clock-in and clock-out times; hours and OT are calculated automatically.`:
-    `Hourly job: no day minimum. The first ${DAY_INCLUDED_HOURS} billable hours per day pay the agreed hourly rate; additional hours pay ${DAY_OT_MULTIPLIER}×.`}</p>
-   <div className="space-y-2">
+    `One full day rate covers the first ${DAY_INCLUDED_HOURS} regular worked hours per day. Additional regular hours are ${DAY_OT_MULTIPLIER}× overtime. A flat-priced return call, if approved, replaces normal pay for that period.`:
+    `Hourly rate: the first ${DAY_INCLUDED_HOURS} regular billable hours per day pay the agreed rate; later regular hours are ${DAY_OT_MULTIPLIER}× overtime. An approved flat return call replaces standard hourly pay for that period.`}</p>
+   <div className="space-y-3">
     {entries.map((entry,index)=>{
      const line=calculation.charges.find(day=>day.date===entry.date);
-     return <div key={index} className="rounded-xl border border-slate-700 bg-slate-900/30 p-3 space-y-2">
+     return <div key={entry.date} className="rounded-xl border border-slate-700 bg-slate-900/30 p-3 space-y-3">
       <div className="flex items-center justify-between gap-2">
        <span className="text-sm font-semibold">{dateLabel(entry.date)}</span>
+       <span className="muted text-xs">{entry.shifts.length} period{entry.shifts.length===1?"":"s"}</span>
       </div>
-      <div className="grid grid-cols-2 gap-3">
-       <label className="min-w-0 block"><span className="label">Time in</span>
-        <input type="time" step={60} aria-label={"Time in "+dateLabel(entry.date)} value={entry.timeIn}
-         onChange={e=>updateEntry(index,{timeIn:e.target.value})} disabled={busy} className="!min-w-0 !w-full !px-2.5 !py-2.5 !text-base"/></label>
-       <label className="min-w-0 block"><span className="label">Time out</span>
-        <input type="time" step={60} aria-label={"Time out "+dateLabel(entry.date)} value={entry.timeOut}
-         onChange={e=>updateEntry(index,{timeOut:e.target.value})} disabled={busy} className="!min-w-0 !w-full !px-2.5 !py-2.5 !text-base"/></label>
-      </div>
-      {entry.timeIn&&entry.timeOut&&shiftHours(entry.timeIn,entry.timeOut)!==null&&
-       <p className="muted text-xs">Calculated shift: {shiftHours(entry.timeIn,entry.timeOut)?.toFixed(2)} hrs
-        {entry.timeOut<entry.timeIn?" · Out next day":""}</p>}
+      {entry.shifts.map((shift,shiftIndex)=><div key={shiftIndex} className="rounded-lg border border-slate-700/70 p-3 space-y-2">
+       <div className="flex flex-wrap justify-between items-center gap-2">
+        <p className="text-xs font-semibold text-blue-200">Work period {shiftIndex+1}</p>
+        {shiftIndex>0&&<button type="button" className="text-xs text-red-300 underline" disabled={busy}
+         onClick={()=>removeShift(index,shiftIndex)}>Remove</button>}
+       </div>
+       <div className="grid grid-cols-2 gap-3">
+        <label className="min-w-0 block"><span className="label">Time in</span>
+         <input type="time" step={60} aria-label={`Time in ${dateLabel(entry.date)}, period ${shiftIndex+1}`}
+          value={shift.timeIn} onChange={event=>updateShift(index,shiftIndex,{timeIn:event.target.value})}
+          disabled={busy} className="!min-w-0 !w-full !px-2.5 !py-2.5 !text-base"/></label>
+        <label className="min-w-0 block"><span className="label">Time out</span>
+         <input type="time" step={60} aria-label={`Time out ${dateLabel(entry.date)}, period ${shiftIndex+1}`}
+          value={shift.timeOut} onChange={event=>updateShift(index,shiftIndex,{timeOut:event.target.value})}
+          disabled={busy} className="!min-w-0 !w-full !px-2.5 !py-2.5 !text-base"/></label>
+       </div>
+       {shift.timeIn&&shift.timeOut&&shiftHours(shift.timeIn,shift.timeOut)!==null&&
+        <p className="muted text-xs">Worked {shiftHours(shift.timeIn,shift.timeOut)?.toFixed(2)}h
+         {shift.timeOut<shift.timeIn?" · Ends next day":""}</p>}
+       {returnCallFlatAmount!==null&&shiftIndex>0&&<label className="block">
+        <span className="label">Payment for this period</span>
+        <select disabled={busy} value={shift.payType} onChange={event=>updateShift(index,shiftIndex,{payType:event.target.value as ShiftEntry["payType"]})}>
+         <option value="standard">Standard daily rate / overtime rules</option>
+         <option value="return_flat">Approved flat return call · {currency(returnCallFlatAmount)}</option>
+        </select>
+       </label>}
+      </div>)}
+      <button type="button" disabled={busy||entry.shifts.length>=8} className="pill text-blue-300 text-sm" onClick={()=>addShift(index)}>
+       + Add another work period
+      </button>
       <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
        <input type="checkbox" className="!w-auto accent-blue-500" checked={entry.lunch_taken}
-        onChange={e=>updateEntry(index,{lunch_taken:e.target.checked})} disabled={busy} />
-       Lunch taken <span className="muted">{(shiftHours(entry.timeIn,entry.timeOut)||0)>10?"(subtract 1 hour)":"(applies only over 10 hours)"}</span>
+        onChange={event=>updateEntry(index,{lunch_taken:event.target.checked})} disabled={busy}/>
+       Lunch taken <span className="muted">(subtract 1h only when worked time exceeds 10h)</span>
       </label>
       {line&&<div className="border-t border-slate-800 pt-2 space-y-1">
-       <p className="muted text-xs">{rateBasis==="day"?
-        (line.otHours>0?`Day rate + ${line.otHours.toFixed(2)} OT hrs`:"Day rate · up to 10 hrs"):
-        (line.otHours>0?`${line.regularHours.toFixed(2)} regular hrs + ${line.otHours.toFixed(2)} OT hrs (1.5×)`:`${line.billableHours.toFixed(2)} billable hrs × ${currency(agreedRate)}`)}{line.lunchDeducted>0?" · 1h lunch deducted":""}</p>
-       <p className="text-base font-semibold text-slate-100">{currency(line.total)}</p>
+       <p className="muted text-xs">{line.hours.toFixed(2)}h actually worked
+        {line.lunchDeducted?" · 1h lunch deducted":""}
+        {line.otHours>0?" · "+line.otHours.toFixed(2)+"h regular OT":""}
+        {line.flatReturnAmount>0?" · "+currency(line.flatReturnAmount)+" flat return call":""}</p>
+       <p className="font-semibold text-base">{currency(line.total)}</p>
       </div>}
      </div>;
     })}
    </div>
+   {flatCount>1&&<p role="alert" className="text-amber-200 text-xs">Only one work period per invoice may use the approved flat return-call payment.</p>}
+   {workError&&<p role="alert" className="text-amber-200 text-xs">{workError}</p>}
+   {duplicateDates&&<p className="text-amber-200 text-xs">Each date may appear only once.</p>}
+   {!allValid&&<p className="text-amber-200 text-xs">Finish or remove incomplete work periods. Overnight shifts are supported.</p>}
    <p className="muted text-xs">Work dates and clock times use {job.time_zone}. For additional work dates, ask the admin to update the job schedule before invoicing.</p>
-   {duplicateDates&&<p className="text-amber-200 text-xs">Each date can appear only once.</p>}
-   {!allValid&&<p className="text-amber-200 text-xs">Each entered shift needs a valid Time in and Time out. Overnight shifts are supported; equal times are not.</p>}
    <div className="rounded-xl bg-slate-900/70 border border-slate-700 p-3 space-y-3">
     <h3 className="font-semibold text-sm">Invoice summary</h3>
     <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm">

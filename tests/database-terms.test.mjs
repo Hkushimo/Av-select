@@ -13,7 +13,7 @@ test("database migrations enforce venue dates and frozen pay terms",async t=>{
   const dir=new URL("../supabase/migrations/",import.meta.url);
   for(const file of (await readdir(dir)).sort()){
    // Storage objects belong to Supabase, not the scheduling/billing schema.
-   if(file.startsWith("003")||file.startsWith("018"))continue;
+   if(file.startsWith("003")||file.startsWith("018")||file.startsWith("019"))continue;
    await db.exec(await readFile(new URL(file,dir),"utf8"));
   }
   const tech="00000000-0000-0000-0000-000000000001";
@@ -25,6 +25,7 @@ test("database migrations enforce venue dates and frozen pay terms",async t=>{
    values ('Legacy','2020-01-01T09:00Z','2020-01-01T17:00Z','$500/day','day','open') returning id`)).rows[0].id;
   const oldOffer=(await db.query(`insert into job_offers(job_id,technician_id) values ($1,$2) returning id`,[legacy,tech])).rows[0].id;
   await db.exec(await readFile(new URL("018_job_time_and_pay_terms.sql",dir),"utf8"));
+  await db.exec(await readFile(new URL("019_split_shift_return_calls.sql",dir),"utf8"));
   const makeJob=async(overrides={})=>{
    const j={start:"2020-01-02T01:00:00Z",end:"2020-01-02T08:00:00Z",zone:"America/Los_Angeles",basis:"hourly",...overrides};
    return (await db.query(`insert into jobs(title,starts_at,ends_at,time_zone,rate_basis,status)
@@ -109,6 +110,47 @@ test("database migrations enforce venue dates and frozen pay terms",async t=>{
    const j=await makeJob({start,end,zone:"UTC"}),o=await makeOffer(j);
    await db.query("update job_offers set status='confirmed' where id=$1",[o.id]);
    await assert.rejects(()=>invoice(o.id,[day(date,"23:00","01:00",2)]),/has not finished|within the job dates/);
+  });
+  await t.test("approved flat return call produces $400 + $240 without charging a second day rate",async()=>{
+   const admin="00000000-0000-0000-0000-000000000088";
+   await db.exec(`insert into auth.users values ('${admin}');
+    insert into public.profiles(id,email,role) values ('${admin}','admin@example.test','admin');`);
+   const j=await makeJob({start:"2020-05-01T10:00:00Z",end:"2020-05-02T03:00:00Z",zone:"UTC",basis:"day"});
+   const o=await makeOffer(j,"$400/day");
+   await db.query("update job_offers set status='confirmed' where id=$1",[o.id]);
+   const periods=[
+    {time_in:"10:00",time_out:"18:00",hours:8,pay_type:"standard"},
+    {time_in:"21:00",time_out:"02:00",hours:5,pay_type:"return_flat"}
+   ];
+   const dayLog={date:"2020-05-01",hours:13,lunch_taken:false,shifts:periods};
+   await assert.rejects(
+    ()=>invoice(o.id,[dayLog],{billing_basis:"day"}),
+    /Admin-approved return-call amount required/);
+   await db.exec(`select set_config('request.jwt.claim.sub','${admin}',false)`);
+   await db.query("update job_offers set return_call_flat_amount=240 where id=$1",[o.id]);
+   await db.exec(`select set_config('request.jwt.claim.sub','${tech}',false)`);
+   const saved=await invoice(o.id,[dayLog],{billing_basis:"day",billed_total:999,return_call_flat_amount:999});
+   assert.equal(Number(saved.billed_total),640);
+   assert.equal(Number(saved.hours),13);
+   assert.equal(Number(saved.return_call_flat_amount),240);
+   assert.equal(saved.work_days[0].shifts.length,2);
+   await db.exec(`select set_config('request.jwt.claim.sub','${admin}',false)`);
+   await assert.rejects(()=>db.query("update job_offers set return_call_flat_amount=300 where id=$1",[o.id]),/after invoice submission/);
+   await db.exec(`select set_config('request.jwt.claim.sub','${tech}',false)`);
+  });
+
+  await t.test("unapproved return calls use ordinary overtime and cannot overlap",async()=>{
+   const j=await makeJob({start:"2020-06-01T10:00:00Z",end:"2020-06-02T03:00:00Z",zone:"UTC",basis:"day"});
+   const o=await makeOffer(j,"$400/day");
+   await db.query("update job_offers set status='confirmed' where id=$1",[o.id]);
+   const dayLog={date:"2020-06-01",hours:13,shifts:[
+    {time_in:"10:00",time_out:"18:00",hours:8,pay_type:"standard"},
+    {time_in:"21:00",time_out:"02:00",hours:5,pay_type:"standard"}]};
+   await assert.rejects(()=>invoice(o.id,[{...dayLog,shifts:[
+    dayLog.shifts[0],{time_in:"17:00",time_out:"22:00",hours:5,pay_type:"standard"}]}],{billing_basis:"day"}),/overlap/);
+   const saved=await invoice(o.id,[dayLog],{billing_basis:"day"});
+   assert.equal(Number(saved.billed_total),580);
+   assert.equal(Number(saved.hours),13);
   });
   await t.test("other technicians cannot invoice someone else's booking",async()=>{
    await db.exec("select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000099',false)");

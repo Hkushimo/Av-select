@@ -5,7 +5,7 @@ import {redirect} from "next/navigation";
 import {currentRole} from "@/lib/server";
 import AppIcon from "@/app/app-icon";
 import {estimateOfferPayout} from "@/lib/payout-estimate";
-import {displayOfferRate} from "@/lib/invoicing";
+import {displayOfferRate,currency} from "@/lib/invoicing";
 
 type Job={time_zone:string|null;title:string;venue:string;starts_at:string;ends_at:string|null;rate:string;rate_basis:"hourly"|"day";details:string;status:string};
 export default async function TechnicianDashboard(){
@@ -15,17 +15,17 @@ export default async function TechnicianDashboard(){
  if(role!=="technician")redirect("/");
  const [{data:profile,error:profileError},{data:offers,error:offersError}]=await Promise.all([
   db.from("technicians").select("full_name,completed_at").eq("user_id",user.id).maybeSingle(),
-  db.from("job_offers").select("id,status,offer_rate,jobs(title,venue,time_zone,starts_at,ends_at,rate,rate_basis,details,status)")
+  db.from("job_offers").select("id,status,offer_rate,return_call_flat_amount,jobs(title,venue,time_zone,starts_at,ends_at,rate,rate_basis,details,status)")
    .eq("technician_id",user.id).in("status",["pending","accepted","confirmed"])
  ]);
  if(!profile?.completed_at&&!profileError)redirect("/onboarding");
  const pending=offers?.filter(o=>o.status==="pending")||[];
  const accepted=offers?.filter(o=>o.status==="accepted"||o.status==="confirmed")||[];
  const now=Date.now();
- const upcoming=accepted.map(o=>({id:o.id,status:o.status,offer_rate:o.offer_rate||"",job:o.jobs as unknown as Job|null}))
+ const upcoming=accepted.map(o=>({id:o.id,status:o.status,offer_rate:o.offer_rate||"",return_call_flat_amount:o.return_call_flat_amount===null?null:Number(o.return_call_flat_amount),job:o.jobs as unknown as Job|null}))
   .filter(o=>o.job?.starts_at&&new Date(o.job.ends_at||o.job.starts_at).getTime()>=now)
   .sort((a,b)=>new Date(a.job!.starts_at).getTime()-new Date(b.job!.starts_at).getTime())[0];
- const estimate=upcoming?estimateOfferPayout(upcoming.job,upcoming.offer_rate):null;
+ const estimate=upcoming&&upcoming.return_call_flat_amount===null?estimateOfferPayout(upcoming.job,upcoming.offer_rate):null;
  const firstName=profile?.full_name?.trim().split(/\s+/)[0];
  const date=(value:string)=>formatJobTime(value,upcoming?.job?.time_zone||null);
  return <main className="mx-auto max-w-3xl px-4 py-6 space-y-5">
@@ -53,6 +53,7 @@ export default async function TechnicianDashboard(){
     <p className="muted text-sm">{date(upcoming.job.starts_at)}{upcoming.job.ends_at?" – "+date(upcoming.job.ends_at):""} · {zoneLabel(upcoming.job.time_zone)}</p>
     <p className="muted text-sm">{upcoming.job.venue||"Venue TBD"}</p>
     {(upcoming.offer_rate||upcoming.job.rate)&&<p className="text-sm muted">Your rate · {displayOfferRate(upcoming.offer_rate||upcoming.job.rate,upcoming.job.rate_basis==="day"?"day":"hourly")}</p>}
+    {upcoming.return_call_flat_amount!==null&&<p className="text-blue-300 text-xs">Approved return call: {currency(upcoming.return_call_flat_amount)} · Split-shift total depends on work periods.</p>}
     {estimate&&<div className="rounded-lg border border-emerald-500/25 bg-emerald-500/10 px-3 py-3 space-y-1">
      <p className="text-xs text-emerald-200">Estimated payout</p>
      <p className="text-xl font-bold text-green-300 tabular-nums">{estimate.label}</p>

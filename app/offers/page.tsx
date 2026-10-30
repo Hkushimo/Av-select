@@ -10,13 +10,13 @@ export default async function MySchedule(){
  if(role!=="technician")redirect("/");
  const [{data:offers,error},{data:invoices,error:invoiceError}]=await Promise.all([
   db.from("job_offers")
-   .select("id,status,offer_position,offer_rate,jobs(title,venue,address,signal_flow,time_zone,starts_at,ends_at,rate,rate_basis,details,status)")
+   .select("id,status,offer_position,offer_rate,return_call_flat_amount,jobs(title,venue,address,signal_flow,time_zone,starts_at,ends_at,rate,rate_basis,details,status)")
    .eq("technician_id",user.id).in("status",["pending","accepted","confirmed"]).order("created_at",{ascending:false}),
   db.from("technician_invoices").select("id,offer_id").eq("technician_id",user.id)
  ]);
  const invoicesByOffer=new Map((invoices||[]).filter(i=>!!i.offer_id).map(i=>[i.offer_id,i.id]));
  const entries:ScheduleOffer[]=(offers||[]).map(o=>({
-  id:o.id,status:o.status,offer_position:o.offer_position||"",offer_rate:o.offer_rate||"",invoice_id:invoicesByOffer.get(o.id)||null,
+  id:o.id,status:o.status,offer_position:o.offer_position||"",offer_rate:o.offer_rate||"",return_call_flat_amount:o.return_call_flat_amount===null?null:Number(o.return_call_flat_amount),invoice_id:invoicesByOffer.get(o.id)||null,
   job:o.jobs as unknown as ScheduleOffer["job"]
  }));
  return <main className="mx-auto max-w-3xl px-4 py-6 space-y-5">
