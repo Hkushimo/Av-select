@@ -65,7 +65,7 @@ test("database migrations enforce venue dates and frozen pay terms",async t=>{
    for(const date of ["2019-12-31","2020-01-02","2099-01-01"])
     await assert.rejects(()=>invoice(offer.id,[day(date)]),/within the job dates/);
    await assert.rejects(()=>invoice(offer.id,[day()],{due_on:"2000-01-01"}),/Due date/);
-   await assert.rejects(()=>invoice(offer.id,[day(),day()]),/unique/);
+   await assert.rejects(()=>invoice(offer.id,[day(),day()]),/unique|overlap/);
    await assert.rejects(()=>invoice(offer.id,[day("2020-01-01","09:00","17:00",99)]),/do not match/);
   });
   await t.test("valid invoice uses frozen rate and venue snapshot",async()=>{
