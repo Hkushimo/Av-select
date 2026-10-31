@@ -7,6 +7,7 @@ import RatingEditor from "./rating-editor";
 import {formatPhone} from "@/lib/phone";
 import {locationText} from "@/lib/us-location";
 import Breadcrumbs from "../../breadcrumbs";
+import SetTechnicianPassword from "./set-password";
 import DeleteTechnician from "./delete-technician";
 
 type Props = { params: Promise<{ id: string }> };
@@ -70,6 +71,7 @@ export default async function TechnicianDetails({ params }: Props) {
     </section>
 
     <RatingEditor technicianId={id} initialRatings={ratings || []} suggestions={[...(technician.roles || []),...(technician.equipment || [])]} />
+    <SetTechnicianPassword id={id} name={displayName}/>
     <DeleteTechnician id={id} name={displayName}/>
   </main>;
 }

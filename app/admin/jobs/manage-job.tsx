@@ -18,6 +18,7 @@ export default function ManageJob({jobId,initialStatus,rateBasis,timeZone,starts
 }){
  const router=useRouter();
  const [status,setStatus]=useState<JobStatus>(initialStatus),[payBasis,setPayBasis]=useState<RateBasis>(rateBasis),[busy,setBusy]=useState(false);
+ const [bookingMode,setBookingMode]=useState<"offer"|"direct">("offer");
  const [selected,setSelected]=useState<string[]>([]),[offerDetails,setOfferDetails]=useState<Record<string,{position:string;rate:string;returnFlat:string}>>({}),[error,setError]=useState(""),[notice,setNotice]=useState("");
  const [skill,setSkill]=useState(""),[level,setLevel]=useState(3),[required,setRequired]=useState(true);
  const [existingOffers,setExistingOffers]=useState(offers);
@@ -105,13 +106,13 @@ export default function ManageJob({jobId,initialStatus,rateBasis,timeZone,starts
   if(proposed.some(o=>o.returnFlat!==""&&(!Number.isFinite(Number(o.returnFlat))||Number(o.returnFlat)<=0||Number(o.returnFlat)>100000||Math.abs(Number(o.returnFlat)*100-Math.round(Number(o.returnFlat)*100))>0.000001))){
    setError("Enter a valid positive return-call amount or leave it blank.");return;
   }
-  const payload=proposed.map(o=>({job_id:jobId,technician_id:o.id,status:"pending",offer_position:o.position,
+  const payload=proposed.map(o=>({job_id:jobId,technician_id:o.id,status:bookingMode==="direct"?"confirmed":"pending",offer_position:o.position,
    offer_rate:"$"+o.amount.toFixed(2)+(payBasis==="day"?"/day":"/hr"),
    return_call_flat_amount:o.returnFlat===""?null:Number(o.returnFlat)}));
   setBusy(true);setError("");setNotice("");
   const {data,error}=await browserDb().from("job_offers").insert(payload).select("id,technician_id,status,offer_position,offer_rate,return_call_flat_amount");
   if(error)setError(error.message);
-  else{setExistingOffers(items=>[...items,...(data||[])]);setSelected([]);setOfferDetails({});setNotice("Offers saved with individual positions and rates.");router.refresh()}
+  else{setExistingOffers(items=>[...items,...(data||[])]);setSelected([]);setOfferDetails({});setNotice(bookingMode==="direct"?"Booked directly. These jobs are now on the technicians’ schedules.":"Offers saved with individual positions and rates.");router.refresh()}
   setBusy(false);
  }
  async function cancelOffer(offer:Offer){
@@ -217,12 +218,13 @@ export default function ManageJob({jobId,initialStatus,rateBasis,timeZone,starts
   </details>
   <details className="panel !p-4 sm:!p-5 group" id="send-offers" open>
    <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden flex items-center justify-between gap-2">
-    <h2 className="font-semibold text-lg">Send job offers</h2>
+    <h2 className="font-semibold text-lg">Add crew</h2>
     <span className="text-blue-300 text-sm group-open:hidden">Select crew</span>
     <span className="text-blue-300 text-sm hidden group-open:inline">Close</span>
    </summary>
    <div className="space-y-3 pt-4">
-   <p className="muted text-xs">Select technicians, then set each person’s position and {payBasis==="day"?"10-hour day":"hourly"} rate. {payBasis==="day"?"Overtime after 10 hours is 1.5× the base hourly equivalent.":"Hourly invoices bill actual hours, with 1.5× OT after 10 billable hours."} Offers are not confirmed bookings.</p>
+   <fieldset className="space-y-2"><legend className="label">Booking method</legend><div className="flex flex-wrap gap-2"><button type="button" className="pill" aria-pressed={bookingMode==="offer"} disabled={busy} onClick={()=>setBookingMode("offer")}>Send offers</button><button type="button" className="pill" aria-pressed={bookingMode==="direct"} disabled={busy} onClick={()=>setBookingMode("direct")}>Book directly</button></div><p className="muted text-sm">{bookingMode==="direct"?"Already agreed with the technician? Add them straight to their confirmed schedule. No acceptance or additional confirmation is needed.":"Technicians accept the offer, then you confirm the booking."}</p></fieldset>
+   <p className="muted text-xs">Select technicians, then set each person’s position and {payBasis==="day"?"10-hour day":"hourly"} rate. {payBasis==="day"?"Overtime after 10 hours is 1.5× the base hourly equivalent.":"Hourly invoices bill actual hours, with 1.5× OT after 10 billable hours."} {bookingMode==="offer"?"Offers are not confirmed bookings.":"Schedule conflicts are still checked."}</p>
    {status!=="open"&&<p className="text-amber-200 text-sm">Set job status to Open to send offers.</p>}
    <div className="space-y-2 border border-slate-700 rounded-xl p-3">
     <input type="search" aria-label="Search candidates" placeholder="Search names, city, specialties…" value={search} onChange={e=>setSearch(e.target.value)}/>
@@ -258,7 +260,7 @@ export default function ManageJob({jobId,initialStatus,rateBasis,timeZone,starts
      </div>}
     </div>)}</div>}
    <button type="button" className="primary w-full" disabled={busy||status!=="open"||!selected.length} onClick={sendOffers}>
-    {busy?"Saving…":`Offer job to ${selected.length} technician${selected.length===1?"":"s"}`}
+    {busy?"Saving…":`${bookingMode==="direct"?"Book":"Offer job to"} ${selected.length} technician${selected.length===1?"":"s"}${bookingMode==="direct"?" directly":""}`}
    </button>
    <p className="muted text-xs">Offers appear in technicians' app accounts; this does not send SMS or push notifications.</p>
    </div>

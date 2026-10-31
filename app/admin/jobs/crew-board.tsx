@@ -29,6 +29,7 @@ export default function CrewBoard({offers,technicians,busy,onConfirm,onUndo,onRe
  function row(o:CrewOffer){return <li key={o.id} className="border-t border-slate-700/70 py-4 space-y-3 sm:flex sm:flex-wrap sm:items-center sm:justify-between sm:gap-4 sm:space-y-0">
   <div className="min-w-0"><p className="font-semibold break-words">{names.get(o.technician_id)||"Technician"}</p><p className="muted text-sm mt-1 break-words">{o.offer_position||"Position not specified"}</p>{o.offer_rate&&<p className="text-sm mt-1 text-slate-200">{o.offer_rate}</p>}</div>
   <div className="flex flex-wrap gap-2 shrink-0">
+   {o.status==="pending"&&<button type="button" className="primary" disabled={busy} onClick={()=>onConfirm(o)} aria-label={`Book ${names.get(o.technician_id)||"technician"} directly`}>Book directly</button>}
    {o.status==="accepted"&&<button type="button" className="primary min-h-11 !px-4 text-sm" disabled={busy} onClick={()=>onConfirm(o)} aria-label={`Confirm booking for ${names.get(o.technician_id)||"technician"}`}>Confirm booking</button>}
    {o.status==="confirmed"&&<button type="button" className="pill min-h-11" disabled={busy} onClick={()=>onUndo(o)} aria-label={`Undo confirmation for ${names.get(o.technician_id)||"technician"}`}>Undo confirmation</button>}
    <button type="button" className="button-danger" disabled={busy} onClick={()=>onRelease(o)} aria-label={`${o.status==="pending"?"Withdraw offer for":"Release"} ${names.get(o.technician_id)||"technician"}`}>{o.status==="pending"?"Withdraw":"Release"}</button>
@@ -54,7 +55,7 @@ export default function CrewBoard({offers,technicians,busy,onConfirm,onUndo,onRe
    </div>}
  </li>}
  return <section className="space-y-4" aria-label="Crew and bookings">
-  <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-xl font-bold">Crew & bookings</h2><p className="muted text-sm mt-1">{counts.pending+counts.accepted+counts.confirmed} active offers · {counts.confirmed} confirmed</p></div><a href="#send-offers" className="primary">+ Offer this job</a></div>
+  <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-xl font-bold">Crew & bookings</h2><p className="muted text-sm mt-1">{counts.pending+counts.accepted+counts.confirmed} active offers · {counts.confirmed} confirmed</p></div><a href="#send-offers" className="primary">+ Add crew</a></div>
   <nav aria-label="Crew response groups" className="grid grid-cols-3 gap-2">
    {groups.map(g=><a key={g.status} href={`#crew-${g.status}`} className="rounded-xl border border-slate-700 bg-slate-900/60 p-3 focus-visible:outline-2 focus-visible:outline-blue-400"><strong className={`block text-2xl tabular-nums ${g.color}`}>{counts[g.status as keyof typeof counts]}</strong><span className="text-xs text-slate-300">{g.status==="pending"?"Awaiting response":g.status==="accepted"?"Accepted":"Confirmed"}</span></a>)}
   </nav>
