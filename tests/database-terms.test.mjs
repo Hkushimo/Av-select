@@ -40,6 +40,22 @@ test("database migrations enforce venue dates and frozen pay terms",async t=>{
   };
   const day=(date="2020-01-01",time_in="09:00",time_out="17:00",hours=8)=>({date,time_in,time_out,hours});
 
+  await t.test("admin direct bookings enforce RLS, frozen rates, and conflicts",async()=>{
+   const admin="00000000-0000-0000-0000-000000000099";
+   await db.exec(`insert into auth.users values ('${admin}'); insert into profiles(id,email,role) values ('${admin}','admin@example.test','admin'); grant usage on schema public,auth to authenticated; grant select,insert,update on all tables in schema public to authenticated;`);
+   const jobId=await makeJob({start:"2021-02-01T10:00Z",end:"2021-02-01T18:00Z"});
+   const overlap=await makeJob({start:"2021-02-01T12:00Z",end:"2021-02-01T20:00Z"});
+   await db.exec(`set role authenticated; select set_config('request.jwt.claim.sub','${tech}',false);`);
+   try{
+    await assert.rejects(()=>db.query("insert into job_offers(job_id,technician_id,status,offer_rate) values ($1,$2,'confirmed','$50/hr')",[jobId,tech]),/row-level security/);
+    await db.query("select set_config('request.jwt.claim.sub',$1,false)",[admin]);
+    const booking=(await db.query("insert into job_offers(job_id,technician_id,status,offer_rate) values ($1,$2,'confirmed','$50/hr') returning *",[jobId,tech])).rows[0];
+    assert.equal(booking.status,'confirmed');assert.equal(Number(booking.agreed_amount),50);
+    await assert.rejects(()=>db.query("insert into job_offers(job_id,technician_id,status,offer_rate) values ($1,$2,'confirmed','$50/hr')",[overlap,tech]),/Booking conflict/);
+    await db.query("select set_config('request.jwt.claim.sub',$1,false)",[tech]);
+    assert.equal((await db.query("select status from job_offers where id=$1",[booking.id])).rows[0].status,'confirmed');
+   }finally{await db.exec(`reset role; select set_config('request.jwt.claim.sub','${tech}',false);`)}
+  });
   await t.test("legacy instants survive and pay terms are backfilled",async()=>{
    const j=(await db.query("select * from jobs where id=$1",[legacy])).rows[0];
    assert.equal(j.time_zone,null);
